@@ -1,0 +1,22 @@
+{
+  "sheet_name": "RPMB性能",
+  "tools": [
+    {
+      "name": "RPMB_Latency_New.json",
+      "keyword_to_column": {
+        "SeqWr256B_MaxValue:": "F",
+        "SeqWr256B_0.9900:": "G",
+        "SeqWr512B_MaxValue:": "H",
+        "SeqWr512B_0.9900:": "I",
+        "SeqWr8KB_MaxValue:": "J",
+        "SeqWr8KB_0.9900:": "K",
+        "SeqRd256B_MaxValue:": "L",
+        "SeqRd256B_0.9900:": "M",
+        "SeqRd512B_MaxValue:": "N",
+        "SeqRd512B_0.9900:": "O",
+        "SeqRd8KB_MaxValue:": "P",
+        "SeqRd8KB_0.9900:": "Q"
+      }
+    }
+  ]
+}

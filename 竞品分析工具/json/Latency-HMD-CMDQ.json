@@ -1,0 +1,85 @@
+{
+  "sheet_name": "Latency-HMD-CMDQ",
+  "tools": [
+    {
+      "name": "config-rand4.json",
+      "keyword_to_column": {
+        "RDT0_20:": "F",
+        "RDT20_60:": "G",
+        "RDT60_150:": "H",
+        "RDT150_500:": "I",
+        "RDT500_2000:": "J",
+        "RDT2000_10000:": "K",
+        "RDT10000_50000:": "L",
+        "RDTOut50000:": "M"
+      },
+      "group_calculations": [
+        {
+          "name": "RDT_percentages_rand4",
+          "keywords": [
+            "RDT0_20:",
+            "RDT20_60:",
+            "RDT60_150:",
+            "RDT150_500:",
+            "RDT500_2000:",
+            "RDT2000_10000:",
+            "RDT10000_50000:",
+            "RDTOut50000:"
+          ],
+          "calculate_ratio": true,
+          "output_columns": {
+            "RDT0_20:": "F",
+            "RDT20_60:": "G",
+            "RDT60_150:": "H",
+            "RDT150_500:": "I",
+            "RDT500_2000:": "J",
+            "RDT2000_10000:": "K",
+            "RDT10000_50000:": "L",
+            "RDTOut50000:": "M"
+          },
+          "decimal_places": 3
+        }
+      ]
+    },
+    {
+      "name": "config-rand.json",
+      "keyword_to_column": {
+        "RDT0_20:": "N",
+        "RDT20_60:": "O",
+        "RDT60_150:": "P",
+        "RDT150_500:": "Q",
+        "RDT500_2000:": "R",
+        "RDT2000_10000:": "S",
+        "RDT10000_50000:": "T",
+        "RDTOut50000:": "U"
+      },
+      "group_calculations": [
+        {
+          "name": "RDT_percentages_rand",
+          "keywords": [
+            "RDT0_20:",
+            "RDT20_60:",
+            "RDT60_150:",
+            "RDT150_500:",
+            "RDT500_2000:",
+            "RDT2000_10000:",
+            "RDT10000_50000:",
+            "RDTOut50000:"
+          ],
+          "calculate_ratio": true,
+          "output_columns": {
+            "RDT0_20:": "N",
+            "RDT20_60:": "O",
+            "RDT60_150:": "P",
+            "RDT150_500:": "Q",
+            "RDT500_2000:": "R",
+            "RDT2000_10000:": "S",
+            "RDT10000_50000:": "T",
+            "RDTOut50000:": "U"
+          },
+          "decimal_places": 3
+        }
+      ]
+    }
+  ]
+}

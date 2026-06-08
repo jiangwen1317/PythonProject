@@ -1,0 +1,243 @@
+{
+  "sheet_name": "上电Latency-RK客需",
+  "tools": [
+    {
+      "name": "RK Boot Timeout-OB-1.json",
+      "keyword_to_column": {
+        "Boot_ACK_0_1ms:": "F",
+        "Boot_ACK_1_10ms:": "G",
+        "Boot_ACK_10_20ms:": "H",
+        "Boot_ACK_20_30ms:": "I",
+        "Boot_ACK_30_40ms:": "J",
+        "Boot_ACK_40_50ms:": "K",
+        "Boot_ACK_50_80ms:": "L",
+        "Boot_ACK_80_200ms:": "M",
+        "Boot_ACK_Over_200ms:": "N",
+        "Avg_ACK:": "O",
+        "FirstData_0_50ms:": "P",
+        "FirstData_50_100ms:": "Q",
+        "FirstData_100_150ms:": "R",
+        "FirstData_150_200ms:": "S",
+        "FirstData_200_250ms:": "T",
+        "FirstData_250_300ms:": "U",
+        "FirstData_300_1000ms:": "V",
+        "FirstData_1000_2000ms:": "W",
+        "Avg_Data:": "X"
+      },
+      "group_calculations": [
+        {
+          "name": "Boot_ACK_OB",
+          "calculate_ratio": true,
+          "keywords": [
+            "Boot_ACK_0_1ms:",
+            "Boot_ACK_1_10ms:",
+            "Boot_ACK_10_20ms:",
+            "Boot_ACK_20_30ms:",
+            "Boot_ACK_30_40ms:",
+            "Boot_ACK_40_50ms:",
+            "Boot_ACK_50_80ms:",
+            "Boot_ACK_80_200ms:",
+            "Boot_ACK_Over_200ms:"
+          ],
+          "output_columns": {
+            "Boot_ACK_0_1ms:": "F",
+            "Boot_ACK_1_10ms:": "G",
+            "Boot_ACK_10_20ms:": "H",
+            "Boot_ACK_20_30ms:": "I",
+            "Boot_ACK_30_40ms:": "J",
+            "Boot_ACK_40_50ms:": "K",
+            "Boot_ACK_50_80ms:": "L",
+            "Boot_ACK_80_200ms:": "M",
+            "Boot_ACK_Over_200ms:": "N"
+          },
+          "decimal_places": 2
+        },
+        {
+          "name": "FirstData_OB",
+          "calculate_ratio": true,
+          "keywords": [
+            "FirstData_0_50ms:",
+            "FirstData_50_100ms:",
+            "FirstData_100_150ms:",
+            "FirstData_150_200ms:",
+            "FirstData_200_250ms:",
+            "FirstData_250_300ms:",
+            "FirstData_300_1000ms:",
+            "FirstData_1000_2000ms:"
+          ],
+          "output_columns": {
+            "FirstData_0_50ms:": "P",
+            "FirstData_50_100ms:": "Q",
+            "FirstData_100_150ms:": "R",
+            "FirstData_150_200ms:": "S",
+            "FirstData_200_250ms:": "T",
+            "FirstData_250_300ms:": "U",
+            "FirstData_300_1000ms:": "V",
+            "FirstData_1000_2000ms:": "W"
+          },
+          "decimal_places": 2
+        }
+      ]
+    },
+    {
+      "name": "RK Boot Timeout-AB-1.json",
+      "keyword_to_column": {
+        "Boot_ACK_0_1ms:": "Y",
+        "Boot_ACK_1_10ms:": "Z",
+        "Boot_ACK_10_20ms:": "AA",
+        "Boot_ACK_20_30ms:": "AB",
+        "Boot_ACK_30_40ms:": "AC",
+        "Boot_ACK_40_50ms:": "AD",
+        "Boot_ACK_50_80ms:": "AE",
+        "Boot_ACK_80_200ms:": "AF",
+        "Boot_ACK_Over_200ms:": "AG",
+        "Avg_ACK:": "AH",
+        "FirstData_0_50ms:": "AI",
+        "FirstData_50_100ms:": "AJ",
+        "FirstData_100_150ms:": "AK",
+        "FirstData_150_200ms:": "AL",
+        "FirstData_200_250ms:": "AM",
+        "FirstData_250_300ms:": "AN",
+        "FirstData_300_1000ms:": "AO",
+        "FirstData_1000_2000ms:": "AP",
+        "Avg_Data:": "AQ"
+      },
+      "group_calculations": [
+        {
+          "name": "Boot_ACK_AB",
+          "calculate_ratio": true,
+          "keywords": [
+            "Boot_ACK_0_1ms:",
+            "Boot_ACK_1_10ms:",
+            "Boot_ACK_10_20ms:",
+            "Boot_ACK_20_30ms:",
+            "Boot_ACK_30_40ms:",
+            "Boot_ACK_40_50ms:",
+            "Boot_ACK_50_80ms:",
+            "Boot_ACK_80_200ms:",
+            "Boot_ACK_Over_200ms:"
+          ],
+          "output_columns": {
+            "Boot_ACK_0_1ms:": "Y",
+            "Boot_ACK_1_10ms:": "Z",
+            "Boot_ACK_10_20ms:": "AA",
+            "Boot_ACK_20_30ms:": "AB",
+            "Boot_ACK_30_40ms:": "AC",
+            "Boot_ACK_40_50ms:": "AD",
+            "Boot_ACK_50_80ms:": "AE",
+            "Boot_ACK_80_200ms:": "AF",
+            "Boot_ACK_Over_200ms:": "AG"
+          },
+          "decimal_places": 2
+        },
+        {
+          "name": "FirstData_AB",
+          "calculate_ratio": true,
+          "keywords": [
+            "FirstData_0_50ms:",
+            "FirstData_50_100ms:",
+            "FirstData_100_150ms:",
+            "FirstData_150_200ms:",
+            "FirstData_200_250ms:",
+            "FirstData_250_300ms:",
+            "FirstData_300_1000ms:",
+            "FirstData_1000_2000ms:"
+          ],
+          "output_columns": {
+            "FirstData_0_50ms:": "AI",
+            "FirstData_50_100ms:": "AJ",
+            "FirstData_100_150ms:": "AK",
+            "FirstData_150_200ms:": "AL",
+            "FirstData_200_250ms:": "AM",
+            "FirstData_250_300ms:": "AN",
+            "FirstData_300_1000ms:": "AO",
+            "FirstData_1000_2000ms:": "AP"
+          },
+          "decimal_places": 2
+        }
+      ]
+    },
+    {
+      "name": "RK Ready Timeout Power1.json",
+      "keyword_to_column": {
+        "Ready_0_50ms:": "AR",
+        "Ready_50_100ms:": "AS",
+        "Ready_100_150ms:": "AT",
+        "Ready_150_200ms:": "AU",
+        "Ready_200_250ms:": "AV",
+        "Ready_250_300ms:": "AW",
+        "Ready_300_1000ms:": "AX",
+        "Ready_1000_2000ms:": "AY",
+        "Avg_Ready:": "AZ"
+      },
+      "group_calculations": [
+        {
+          "name": "Ready_Power1",
+          "calculate_ratio": true,
+          "keywords": [
+            "Ready_0_50ms:",
+            "Ready_50_100ms:",
+            "Ready_100_150ms:",
+            "Ready_150_200ms:",
+            "Ready_200_250ms:",
+            "Ready_250_300ms:",
+            "Ready_300_1000ms:",
+            "Ready_1000_2000ms:"
+          ],
+          "output_columns": {
+            "Ready_0_50ms:": "AR",
+            "Ready_50_100ms:": "AS",
+            "Ready_100_150ms:": "AT",
+            "Ready_150_200ms:": "AU",
+            "Ready_200_250ms:": "AV",
+            "Ready_250_300ms:": "AW",
+            "Ready_300_1000ms:": "AX",
+            "Ready_1000_2000ms:": "AY"
+          },
+          "decimal_places": 2
+        }
+      ]
+    },
+    {
+      "name": "RK Ready Timeout SW1.json",
+      "keyword_to_column": {
+        "Ready_0_50ms:": "BA",
+        "Ready_50_100ms:": "BB",
+        "Ready_100_150ms:": "BC",
+        "Ready_150_200ms:": "BD",
+        "Ready_200_250ms:": "BE",
+        "Ready_250_300ms:": "BF",
+        "Ready_300_1000ms:": "BG",
+        "Ready_1000_2000ms:": "BH",
+        "Avg_Ready:": "BI"
+      },
+      "group_calculations": [
+        {
+          "name": "Ready_SW1",
+          "calculate_ratio": true,
+          "keywords": [
+            "Ready_0_50ms:",
+            "Ready_50_100ms:",
+            "Ready_100_150ms:",
+            "Ready_150_200ms:",
+            "Ready_200_250ms:",
+            "Ready_250_300ms:",
+            "Ready_300_1000ms:",
+            "Ready_1000_2000ms:"
+          ],
+          "output_columns": {
+            "Ready_0_50ms:": "BA",
+            "Ready_50_100ms:": "BB",
+            "Ready_100_150ms:": "BC",
+            "Ready_150_200ms:": "BD",
+            "Ready_200_250ms:": "BE",
+            "Ready_250_300ms:": "BF",
+            "Ready_300_1000ms:": "BG",
+            "Ready_1000_2000ms:": "BH"
+          },
+          "decimal_places": 2
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+    "sheet_name": "CDM-新填充方式+休眠2s",
+    "tools": [
+      {
+        "name": "NewPreFill_Slp2s.json",
+        "keyword_to_column": {
+          "Max_Seq_Rd_Spd:": "F",
+          "Max_Seq_Wr_Spd:": "G",
+          "Max_Rand_Rd_Spd:": "H",
+          "Max_Rand_Wr_Spd:": "I"
+        }
+      }
+    ]
+  }

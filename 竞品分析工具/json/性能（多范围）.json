@@ -1,0 +1,24 @@
+{
+    "sheet_name": "性能（多范围）",
+    "tools": [
+      {
+        "name": "CA-CDM-Different-Size.json",
+        "keyword_to_column": {
+          "RandRead_Diff_Size_0:": "F",
+          "RandRead_Diff_Size_1:": "G",
+          "RandRead_Diff_Size_2:": "H",
+          "RandRead_Diff_Size_3:": "I",
+          "RandRead_Diff_Size_4:": "J",
+          "RandRead_Diff_Size_5:": "K",
+          "RandRead_Diff_Size_6:": "L",
+          "RandWrite_Diff_Size_0:": "M",
+          "RandWrite_Diff_Size_1:": "N",
+          "RandWrite_Diff_Size_2:": "O",
+          "RandWrite_Diff_Size_3:": "P",
+          "RandWrite_Diff_Size_4:": "Q",
+          "RandWrite_Diff_Size_5:": "R",
+          "RandWrite_Diff_Size_6:": "S"
+        }
+      }
+    ]
+  }

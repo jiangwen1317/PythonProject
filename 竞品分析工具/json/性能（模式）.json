@@ -1,0 +1,38 @@
+{
+  "sheet_name": "性能（模式）",
+  "tools": [
+    {
+      "name": "CA-CDM-CMDQ.json",
+      "keyword_to_column": {
+        "Max_Seq_Rd_Spd:": "F",
+        "Max_Seq_Wr_Spd:": "G",
+        "Max_Rand_Rd_Spd:": "H",
+        "Max_Rand_Wr_Spd:": "I"
+      }
+    },
+    {
+      "name": "CA-CDM-PKC.json",
+      "keyword_to_column": {
+        "Max_Seq_Rd_Spd:": "J",
+        "Max_Seq_Wr_Spd:": "K",
+        "Max_Rand_Rd_Spd:": "L",
+        "Max_Rand_Wr_Spd:": "M"
+      }
+    },
+    {
+      "name": "CA-CDM-Normal.json",
+      "keyword_to_column": {
+        "Max_Seq_Rd_Spd:": "N",
+        "Max_Seq_Wr_Spd:": "O",
+        "Max_Rand_Rd_Spd:": "P",
+        "Max_Rand_Wr_Spd:": "Q",
+        "Sleep_Cur_VCC_Avg:": "R",
+        "Sleep_Cur_VCCQ_Avg:": "S",
+        "Seq_Rd_Cur_VCC_Avg:": "T",
+        "Seq_Rd_Cur_VCCQ_Avg:": "U",
+        "Seq_Wr_Cur_VCC_Avg:": "V",
+        "Seq_Wr_Cur_VCCQ_Avg:": "W"
+      }
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "sheet_name": "上电Latency",
+  "tools": [
+    {
+      "name": "SPOR_Latency-NewOld.json",
+      "keyword_to_column": {
+        "ABACKT0_1:": "F",
+        "ABACKT1_10:": "G",
+        "ABACKT10_20:": "H",
+        "ABACKT20_30:": "I",
+        "ABACKT30_40:": "J",
+        "ABACKT40_50:": "K",
+        "ABACKT50_80:": "L",
+        "ABACKT80_200:": "M",
+        "ABACKTOut200:": "N",
+        "OBACKT0_1:": "O",
+        "OBACKT1_10:": "P",
+        "OBACKT10_20:": "Q",
+        "OBACKT20_30:": "R",
+        "OBACKT30_40:": "S",
+        "OBACKT40_50:": "T",
+        "OBACKT50_80:": "U",
+        "OBACKT80_200:": "V",
+        "OBACKTOut200:": "W",
+        "ABFDT0_50:": "X",
+        "ABFDT50_100:": "Y",
+        "ABFDT100_150:": "Z",
+        "ABFDT150_200:": "AA",
+        "ABFDT200_250:": "AB",
+        "ABFDT250_300:": "AC",
+        "ABFDT300_1000:": "AD",
+        "ABFDT1000_2000:": "AE",
+        "ABFDTOut2000:": "AF",
+        "OBFDT0_50:": "AG",
+        "OBFDT50_100:": "AH",
+        "OBFDT100_150:": "AI",
+        "OBFDT150_200:": "AJ",
+        "OBFDT200_250:": "AK",
+        "OBFDT250_300:": "AL",
+        "OBFDT300_1000:": "AM",
+        "OBFDT1000_2000:": "AN",
+        "OBFDTOut2000:": "AO"
+      },
+      "group_calculations": [
+        {
+          "name": "ABACKT_percentages",
+          "keywords": [
+            "ABACKT0_1:",
+            "ABACKT1_10:",
+            "ABACKT10_20:",
+            "ABACKT20_30:",
+            "ABACKT30_40:",
+            "ABACKT40_50:",
+            "ABACKT50_80:",
+            "ABACKT80_200:",
+            "ABACKTOut200:"
+          ],
+          "calculate_ratio": true,
+          "output_columns": {
+            "ABACKT0_1:": "F",
+            "ABACKT1_10:": "G",
+            "ABACKT10_20:": "H",
+            "ABACKT20_30:": "I",
+            "ABACKT30_40:": "J",
+            "ABACKT40_50:": "K",
+            "ABACKT50_80:": "L",
+            "ABACKT80_200:": "M",
+            "ABACKTOut200:": "N"
+          },
+          "decimal_places": 2
+        },
+        {
+          "name": "OBACKT_percentages",
+          "keywords": [
+            "OBACKT0_1:",
+            "OBACKT1_10:",
+            "OBACKT10_20:",
+            "OBACKT20_30:",
+            "OBACKT30_40:",
+            "OBACKT40_50:",
+            "OBACKT50_80:",
+            "OBACKT80_200:",
+            "OBACKTOut200:"
+          ],
+          "calculate_ratio": true,
+          "output_columns": {
+            "OBACKT0_1:": "O",
+            "OBACKT1_10:": "P",
+            "OBACKT10_20:": "Q",
+            "OBACKT20_30:": "R",
+            "OBACKT30_40:": "S",
+            "OBACKT40_50:": "T",
+            "OBACKT50_80:": "U",
+            "OBACKT80_200:": "V",
+            "OBACKTOut200:": "W"
+          },
+          "decimal_places": 2
+        },
+        {
+          "name": "ABFDT_percentages",
+          "keywords": [
+            "ABFDT0_50:",
+            "ABFDT50_100:",
+            "ABFDT100_150:",
+            "ABFDT150_200:",
+            "ABFDT200_250:",
+            "ABFDT250_300:",
+            "ABFDT300_1000:",
+            "ABFDT1000_2000:",
+            "ABFDTOut2000:"
+          ],
+          "calculate_ratio": true,
+          "output_columns": {
+            "ABFDT0_50:": "X",
+            "ABFDT50_100:": "Y",
+            "ABFDT100_150:": "Z",
+            "ABFDT150_200:": "AA",
+            "ABFDT200_250:": "AB",
+            "ABFDT250_300:": "AC",
+            "ABFDT300_1000:": "AD",
+            "ABFDT1000_2000:": "AE",
+            "ABFDTOut2000:": "AF"
+          },
+          "decimal_places": 2
+        },
+        {
+          "name": "OBFDT_percentages",
+          "keywords": [
+            "OBFDT0_50:",
+            "OBFDT50_100:",
+            "OBFDT100_150:",
+            "OBFDT150_200:",
+            "OBFDT200_250:",
+            "OBFDT250_300:",
+            "OBFDT300_1000:",
+            "OBFDT1000_2000:",
+            "OBFDTOut2000:"
+          ],
+          "calculate_ratio": true,
+          "output_columns": {
+            "OBFDT0_50:": "AG",
+            "OBFDT50_100:": "AH",
+            "OBFDT100_150:": "AI",
+            "OBFDT150_200:": "AJ",
+            "OBFDT200_250:": "AK",
+            "OBFDT250_300:": "AL",
+            "OBFDT300_1000:": "AM",
+            "OBFDT1000_2000:": "AN",
+            "OBFDTOut2000:": "AO"
+          },
+          "decimal_places": 2
+        }
+      ]
+    }
+  ]
+}

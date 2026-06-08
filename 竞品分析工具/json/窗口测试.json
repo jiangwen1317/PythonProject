@@ -1,0 +1,67 @@
+{
+    "sheet_name": "窗口测试",
+    "tools": [
+      {
+        "name": "DriverWindowDetection-NT-1.7V.json",
+        "keyword_to_column": {
+          "MaxLenth:": "F",
+          "SecondLenth:": "G",
+          "TotalLength:": "H"
+        },
+        "extract_mode": {
+          "MaxLenth:": "average_all",
+          "SecondLenth:": "average_all",
+          "TotalLength:": "average_all"
+        }
+      },
+      {
+        "name": "DriverWindowDetection-NT-1.75V.json",
+        "keyword_to_column": {
+          "MaxLenth:": "I",
+          "SecondLenth:": "J",
+          "TotalLength:": "K"
+        },
+        "extract_mode": {
+          "MaxLenth:": "average_all",
+          "SecondLenth:": "average_all",
+          "TotalLength:": "average_all"
+        }
+      },{
+        "name": "DriverWindowDetection-NT-1.8V.json",
+        "keyword_to_column": {
+          "MaxLenth:": "L",
+          "SecondLenth:": "M",
+          "TotalLength:": "N"
+        },
+        "extract_mode": {
+          "MaxLenth:": "average_all",
+          "SecondLenth:": "average_all",
+          "TotalLength:": "average_all"
+        }
+      },{
+        "name": "DriverWindowDetection-NT-1.85V.json",
+        "keyword_to_column": {
+          "MaxLenth:": "O",
+          "SecondLenth:": "P",
+          "TotalLength:": "Q"
+        },
+        "extract_mode": {
+          "MaxLenth:": "average_all",
+          "SecondLenth:": "average_all",
+          "TotalLength:": "average_all"
+        }
+      },{
+        "name": "DriverWindowDetection-NT-1.9V.json",
+        "keyword_to_column": {
+          "MaxLenth:": "R",
+          "SecondLenth:": "S",
+          "TotalLength:": "T"
+        },
+        "extract_mode": {
+          "MaxLenth:": "average_all",
+          "SecondLenth:": "average_all",
+          "TotalLength:": "average_all"
+        }
+      }
+    ]
+  }

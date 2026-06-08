@@ -1,0 +1,533 @@
+import os
+import zipfile
+import tempfile
+import shutil
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import openpyxl
+import json
+import sys
+from openpyxl.utils import get_column_letter
+
+# ✅ 新增：支持多线程和消息队列
+import threading
+import queue
+
+# 配置与路径设置
+def get_script_dir():
+    """获取程序所在目录，兼容 PyInstaller 打包"""
+    if getattr(sys, 'frozen', False):
+        # 打包模式：sys.executable 是 .exe 文件路径
+        return os.path.dirname(sys.executable)
+    else:
+        # 开发模式：__file__ 是 .py 文件路径
+        return os.path.dirname(os.path.abspath(__file__))
+
+SCRIPT_DIR = get_script_dir()
+
+DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, "template.xlsx")
+DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "config.json")
+
+# ========================
+# 核心功能函数（已增强支持提取全部）
+# ========================
+
+def extract_content_after_keyword(txt_path, keyword, last_only=True):
+    """
+    从TXT文件中提取指定关键字后的内容（关键字带冒号，如 "Max_Seq_Rd_Spd:"）
+    - 如果 last_only=True（默认）：返回最后一次出现的最后一个非空逗号值
+    - 如果 last_only=False：返回所有匹配行中提取出的值（列表）
+    """
+    try:
+        encodings = ['utf-8', 'gbk', 'latin1']
+        for encoding in encodings:
+            try:
+                with open(txt_path, 'r', encoding=encoding) as file:
+                    lines = file.readlines()
+
+                key_clean = keyword.strip()
+                all_results = []
+
+                # 全部模式正序遍历，否则倒序（取最后一次）
+                search_lines = reversed(lines) if last_only else lines
+
+                for line in search_lines:
+                    stripped_line = line.strip()
+                    if not stripped_line.startswith(key_clean):
+                        continue
+
+                    content_start = len(key_clean)
+                    if content_start >= len(stripped_line):
+                        continue
+                    content = stripped_line[content_start:].lstrip()
+
+                    parts = [p.strip() for p in content.split(',') if p.strip()]
+                    if parts:
+                        value = parts[-1]
+                        if last_only:
+                            return value  # 立即返回最后一次
+                        else:
+                            all_results.append(value)
+
+                if last_only:
+                    return None
+                else:
+                    return all_results or None
+
+            except (UnicodeDecodeError, PermissionError):
+                continue
+        return None
+    except Exception as e:
+        print(f"【错误】读取文件失败 {txt_path}: {e}")
+        return None
+
+
+def extract_nested_zips(start_dir, max_iterations=2):
+    """
+    递归解压所有 ZIP 文件，并在解压成功后删除原压缩包
+    :param start_dir: 起始目录
+    :param max_iterations: 最大解压轮数（防止无限循环）
+    """
+    print(f"【开始】深度解压 {start_dir} 下的所有 ZIP 文件，并删除压缩包...")
+
+    for iteration in range(1, max_iterations + 1):
+        extracted = False
+        zip_files = []
+
+        # 遍历收集所有 ZIP 文件
+        for root, _, files in os.walk(start_dir):
+            for file in files:
+                if file.lower().endswith('.zip'):
+                    zip_files.append(os.path.join(root, file))
+
+        if not zip_files:
+            print(f"【完成】第 {iteration} 轮：未发现 ZIP 文件，停止解压。")
+            break
+
+        print(f"【解压】第 {iteration} 轮：发现 {len(zip_files)} 个 ZIP 文件...")
+
+        # 逐个解压并删除
+        for zip_path in zip_files:
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as z:
+                    z.extractall(os.path.dirname(zip_path))
+                print(f"          已解压: {os.path.basename(zip_path)}")
+
+                # ✅ 解压成功后删除原 ZIP 文件
+                os.remove(zip_path)
+                print(f"          已删除: {os.path.basename(zip_path)}")
+                extracted = True
+
+            except Exception as e:
+                print(f"          解压失败: {os.path.basename(zip_path)} - {e}")
+                # 解压失败时不删除文件，保留以便检查
+                continue
+
+        if not extracted:
+            print(f"【完成】第 {iteration} 轮后无新文件解压，结束。")
+            break
+
+    print("【清理】所有可解压的 ZIP 文件已处理并删除。")
+
+
+def get_config_name(txt_file):
+    """从 txt 文件中找 Config_Name: 或 Device_Config_Name:，返回第一个找到的值"""
+    for keyword in ["Config_Name:", "Device_Config_Name       :"]:
+        value = extract_content_after_keyword(txt_file, keyword)
+        if value:
+            # 去掉换行和 .log 这类后缀（比如 "cfg.log" → "cfg"）
+            val = value.strip()
+            return val
+    return ""
+
+
+# ========================
+# 全局控制变量（新增，不影响原有逻辑）
+# ========================
+processing = False
+message_queue = queue.Queue()
+
+
+# ========================
+# GUI 全局变量：提取模式开关
+# ========================
+extract_all_mode = None  # 将在 GUI 创建时初始化
+
+
+# ========================
+# 核心执行函数（原 run_script 重命名为 run_script_in_thread，逻辑未改，仅增加队列反馈）
+# ========================
+
+def run_script_in_thread():
+    """主执行函数（支持新格式 tools）—— 在后台线程中运行"""
+    global processing
+
+    folder_path = folder_entry.get().strip()
+    excel_path = excel_entry.get().strip()
+    config_path = config_entry.get().strip()
+
+    # 参数校验
+    if not folder_path:
+        message_queue.put(("error", "请先选择包含ZIP文件的文件夹！"))
+        processing = False
+        return
+    if not os.path.exists(folder_path):
+        message_queue.put(("error", f"文件夹不存在：\n{folder_path}"))
+        processing = False
+        return
+    if not excel_path or not os.path.exists(excel_path):
+        message_queue.put(("error", f"Excel模板文件不存在：\n{excel_path}"))
+        processing = False
+        return
+    if not config_path or not os.path.exists(config_path):
+        message_queue.put(("error", f"配置文件不存在：\n{config_path}"))
+        processing = False
+        return
+
+    try:
+        # === 读取新格式配置：tools 数组 ===
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        sheet_name = config.get("sheet_name", "Sheet1")
+        tools = config.get("tools", [])
+
+        if not tools:
+            message_queue.put(("warning", "配置文件中未定义 tools！"))
+            processing = False
+            return
+
+        # 收集所有关键字（用于“检测实际存在的关键字”阶段）
+        all_keywords = set()
+        for tool in tools:
+            keywords = tool.get("keyword_to_column", {}).keys()
+            all_keywords.update(keywords)
+        all_keywords = list(all_keywords)
+
+        if not all_keywords:
+            message_queue.put(("warning", "配置文件中未定义任何关键字！"))
+            processing = False
+            return
+
+        # === 获取用户选择的模式 ===
+        use_extract_all = extract_all_mode.get()
+
+        # === 步骤1：递归解压 ZIP ===
+        message_queue.put(("info", "🔄 正在解压 ZIP 文件..."))
+        extract_nested_zips(folder_path)
+
+        # === 步骤2：收集所有 TXT 文件 ===
+        txt_files = []
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                if file.lower().endswith('.txt'):
+                    txt_files.append(os.path.join(root, file))
+
+        if not txt_files:
+            message_queue.put(("warning", "未找到任何 TXT 文件！\n请确认 ZIP 已正确解压。"))
+            processing = False
+            return
+
+        total_files = len(txt_files)
+        message_queue.put(("info", f"📄 共发现 {total_files} 个 TXT 文件，开始处理..."))
+
+        # === 步骤3：检测实际存在的关键字 ===
+        present_keywords = []
+        for keyword in all_keywords:
+            for txt_file in txt_files:
+                if extract_content_after_keyword(txt_file, keyword, last_only=True) is not None:
+                    present_keywords.append(keyword)
+                    break
+
+        if not present_keywords:
+            message_queue.put(("warning", "未在任何 TXT 文件中找到配置的关键字！"))
+            processing = False
+            return
+
+        # === 步骤4：生成 Excel 汇总表 ===
+        summary_excel_path = os.path.join(folder_path, "Summary.xlsx")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+        temp_file.close()
+
+        # 复制模板
+        shutil.copy(excel_path, temp_file.name)
+        wb = openpyxl.load_workbook(temp_file.name)
+
+        if sheet_name not in wb.sheetnames:
+            available = "、".join(wb.sheetnames)
+            raise ValueError(f"模板中未找到工作表 '{sheet_name}'，可用：{available}")
+        ws = wb[sheet_name]
+
+        # === 写表头 ===
+        ws.cell(row=1, column=1, value="板子号")
+        ws.cell(row=1, column=2, value="Script")
+        ws.cell(row=1, column=3, value="Config_Name")
+        ws.cell(row=1, column=4, value="关键字")
+        ws.cell(row=1, column=5, value="数据")
+
+        # === 写数据：按 Config_Name 匹配 tool，提取其关键字 ===
+        row_idx = 2  # 从第2行开始
+        processed_count = 0
+
+        for txt_file in txt_files:
+            processed_count += 1
+            if processed_count % 5 == 0 or processed_count == total_files:
+                message_queue.put(("progress", f"⏳ 正在处理 {processed_count}/{total_files}"))
+
+            try:
+                # 获取相对路径，用于判断层级
+                rel_path = os.path.relpath(txt_file, folder_path)
+                parts = rel_path.replace('\\', '/').split('/')
+                is_deep_structure = len(parts) >= 3
+
+                # --- 提取 board_id ---
+                if is_deep_structure:
+                    board_id = parts[0]
+                else:
+                    filename = os.path.basename(txt_file)
+                    name_no_ext = os.path.splitext(filename)[0]
+                    board_id = name_no_ext.split('_', 1)[0]
+
+                # --- 提取 script_value ---
+                if is_deep_structure:
+                    script_value = os.path.basename(os.path.dirname(txt_file))
+                else:
+                    script_value = extract_content_after_keyword(txt_file, "Script:") or ""
+
+                # --- 提取 config_name_value ---
+                config_name_value = get_config_name(txt_file)
+
+                # --- 查找匹配的 tool（支持全局工具）---
+                matched_tools = [
+                    tool for tool in tools
+                    if tool.get("name") == config_name_value or not tool.get("name")
+                ]
+
+                if not matched_tools:
+                    print(f"【跳过】{os.path.basename(txt_file)} - 未找到匹配 Config_Name '{config_name_value}' 的 tool")
+                    continue
+
+                # --- 提取每个匹配 tool 的所有关键字 ---
+                for tool in matched_tools:
+                    keyword_to_column = tool.get("keyword_to_column", {})
+                    for keyword in keyword_to_column.keys():
+                        # 跳过保留关键字
+                        if keyword.lower() in ["script", "config_name"]:
+                            continue
+
+                        # 如果该关键字不在“实际存在”的列表中，跳过（可选优化）
+                        if keyword not in present_keywords:
+                            continue
+
+                        # ✅ 根据用户选择决定是否提取全部
+                        results = extract_content_after_keyword(txt_file, keyword, last_only=not use_extract_all)
+
+                        if not results:
+                            print(f"【未找到关键字】文件路径: {txt_file}, 关键字: {keyword}")
+                            continue
+
+                        # 统一转为列表处理
+                        values_to_write = results if isinstance(results, list) else [results]
+
+                        for value in values_to_write:
+                            ws.cell(row=row_idx, column=1, value=board_id)
+                            ws.cell(row=row_idx, column=2, value=script_value)
+                            ws.cell(row=row_idx, column=3, value=config_name_value)
+                            ws.cell(row=row_idx, column=4, value=keyword.strip())
+                            ws.cell(row=row_idx, column=5, value=value)
+                            row_idx += 1
+
+            except Exception as e:
+                print(f"【跳过】处理文件失败 {txt_file}: {e}")
+                continue
+
+        # === 自动调整列宽 ===
+        for col in range(1, ws.max_column + 1):
+            max_length = 10
+            col_letter = get_column_letter(col)
+            for cell in ws[col_letter]:
+                if cell.value:
+                    value_str = str(cell.value)
+                    length = sum(2 if ord(c) > 255 else 1 for c in value_str)
+                    max_length = max(max_length, length)
+            ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
+
+        # === 统一设置行高 ===
+        for row in range(1, ws.max_row + 1):
+            ws.row_dimensions[row].height = 18
+
+        # 保存结果
+        wb.save(temp_file.name)
+        shutil.copy(temp_file.name, summary_excel_path)
+        os.remove(temp_file.name)
+
+        # 完成提示（仅弹窗，不自动打开文件夹）
+        msg = f"成功处理 {row_idx - 1} 个数据行！\n结果已保存至：\n{summary_excel_path}"
+        print(f"【完成】{msg}")
+        message_queue.put(("success", msg))
+
+    except Exception as e:
+        error_msg = f"处理过程中发生错误：\n{str(e)}"
+        print(f"【异常】{error_msg}")
+        message_queue.put(("error", error_msg))
+    finally:
+        processing = False
+        message_queue.put(("enable_buttons", None))
+
+
+# ========================
+# GUI 控制函数（精简版）
+# ========================
+
+def run_script():
+    """启动后台线程执行任务"""
+    global processing
+    if processing:
+        messagebox.showwarning("警告", "任务已在运行中，请稍候...")
+        return
+
+    processing = True
+    disable_buttons()
+    threading.Thread(target=run_script_in_thread, daemon=True).start()
+    root.after(100, check_message_queue)
+
+
+def check_message_queue():
+    """定期检查队列中的消息并更新 GUI"""
+    try:
+        while True:
+            msg_type, content = message_queue.get_nowait()
+            if msg_type == "error":
+                messagebox.showerror("错误", content)
+            elif msg_type == "warning":
+                messagebox.showwarning("警告", content)
+            elif msg_type == "info" or msg_type == "progress":
+                status_label.config(text=content)
+            elif msg_type == "success":
+                messagebox.showinfo("成功", content)  # 👈 仅弹窗，不自动打开文件夹
+            elif msg_type == "enable_buttons":
+                enable_buttons()
+    except queue.Empty:
+        pass
+    # 继续监听
+    if processing:
+        root.after(100, check_message_queue)
+
+
+def disable_buttons():
+    """禁用输入框和开始按钮"""
+    folder_entry.config(state="disabled")
+    excel_entry.config(state="disabled")
+    config_entry.config(state="disabled")
+    for widget in root.winfo_children():
+        if isinstance(widget, tk.Button) and widget.cget("text") == "开始提取":
+            widget.config(state="disabled")
+
+
+def enable_buttons():
+    """恢复输入框和按钮"""
+    folder_entry.config(state="normal")
+    excel_entry.config(state="normal")
+    config_entry.config(state="normal")
+    for widget in root.winfo_children():
+        if isinstance(widget, tk.Button) and widget.cget("text") == "开始提取":
+            widget.config(state="normal")
+    status_label.config(text="就绪")
+
+
+# ========================
+# GUI 界面函数（未改动）
+# ========================
+
+def select_folder():
+    path = filedialog.askdirectory(title="选择包含ZIP文件的文件夹")
+    if path:
+        folder_entry.delete(0, tk.END)
+        folder_entry.insert(0, path)
+
+
+def select_excel_file():
+    path = filedialog.askopenfilename(
+        title="选择Excel模板文件",
+        filetypes=[("Excel 文件", "*.xlsx"), ("所有文件", "*.*")]
+    )
+    if path:
+        excel_entry.delete(0, tk.END)
+        excel_entry.insert(0, path)
+
+
+def select_config_file():
+    path = filedialog.askopenfilename(
+        title="选择配置文件",
+        filetypes=[("JSON 文件", "*.json"), ("所有文件", "*.*")]
+    )
+    if path:
+        config_entry.delete(0, tk.END)
+        config_entry.insert(0, path)
+
+
+# ========================
+# GUI 主界面（已新增复选框）
+# ========================
+
+root = tk.Tk()
+root.title("关键字数据提取器V1.3")
+root.geometry("650x380")  # 稍微增加高度以容纳复选框
+root.resizable(False, False)
+
+# --- 输入区域 ---
+tk.Label(root, text="ZIP文件夹路径：", font=("Arial", 10)).grid(row=0, column=0, padx=15, pady=12, sticky="e")
+folder_entry = tk.Entry(root, width=45, font=("Arial", 10))
+folder_entry.grid(row=0, column=1, padx=10, pady=10)
+tk.Button(root, text="浏览", command=select_folder, font=("Arial", 9)).grid(row=0, column=2, padx=8)
+
+tk.Label(root, text="Excel模板：", font=("Arial", 10)).grid(row=1, column=0, padx=15, pady=12, sticky="e")
+excel_entry = tk.Entry(root, width=45, font=("Arial", 10))
+excel_entry.grid(row=1, column=1, padx=10, pady=10)
+tk.Button(root, text="浏览", command=select_excel_file, font=("Arial", 9)).grid(row=1, column=2, padx=8)
+
+tk.Label(root, text="配置文件：", font=("Arial", 10)).grid(row=2, column=0, padx=15, pady=12, sticky="e")
+config_entry = tk.Entry(root, width=45, font=("Arial", 10))
+config_entry.grid(row=2, column=1, padx=10, pady=10)
+tk.Button(root, text="浏览", command=select_config_file, font=("Arial", 9)).grid(row=2, column=2, padx=8)
+
+# --- 自动填充默认路径 ---
+if os.path.exists(DEFAULT_TEMPLATE):
+    excel_entry.insert(0, DEFAULT_TEMPLATE)
+else:
+    print(f"【提示】未找到默认模板：{DEFAULT_TEMPLATE}")
+
+if os.path.exists(DEFAULT_CONFIG):
+    config_entry.insert(0, DEFAULT_CONFIG)
+else:
+    print(f"【提示】未找到默认配置：{DEFAULT_CONFIG}")
+
+# --- 提示信息 ---
+tk.Label(root, text="提示：Excel模板和配置json文件将默认从程序目录中寻找，也可指定路径", fg="gray", font=("Arial", 9)).grid(row=3, column=1, sticky="w", pady=(5, 0))
+
+# --- 新增：提取模式选择 ---
+extract_all_mode = tk.BooleanVar(value=False)
+tk.Checkbutton(
+    root,
+    text="提取全部匹配项（而非仅最后一次）",
+    variable=extract_all_mode,
+    font=("Arial", 9)
+).grid(row=4, column=1, sticky="w", padx=(80, 0), pady=(0, 10))
+
+# --- 执行按钮 ---
+tk.Button(
+    root,
+    text="开始提取",
+    command=run_script,
+    bg="#4CAF50",
+    fg="white",
+    font=("Arial", 11, "bold"),
+    width=15,
+    height=1
+).grid(row=5, column=1, pady=10)
+
+# --- 状态栏 ---
+status_label = tk.Label(root, text="就绪", fg="blue", font=("Arial", 9))
+status_label.grid(row=6, column=0, columnspan=3, pady=10)
+
+# 启动 GUI
+root.mainloop()

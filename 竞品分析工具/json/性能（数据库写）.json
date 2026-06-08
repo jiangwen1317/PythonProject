@@ -1,0 +1,113 @@
+{
+  "sheet_name": "性能（数据库写）",
+  "tools": [
+    {
+      "name": "1-CMDQ_In_burn.json",
+      "keyword_to_column": {
+        "WSpeed_In:": "G"
+      }
+    },
+    {
+      "name": "2-CMDQ_In_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_In_Load:": "H"
+      }
+    },
+    {
+      "name": "3-CMDQ_Up_burn.json",
+      "keyword_to_column": {
+        "WSpeed_Up:": "I"
+      }
+    },
+    {
+      "name": "4-CMDQ_Up_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_Up_Load:": "J"
+      }
+    },
+    {
+      "name": "5-CMDQ_De_burn.json",
+      "keyword_to_column": {
+        "WSpeed_De:": "K"
+      }
+    },
+    {
+      "name": "6-CMDQ_De_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_De_Load:": "L"
+      }
+    },
+    {
+      "name": "1-PACK_In_burn.json",
+      "keyword_to_column": {
+        "WSpeed_In:": "M"
+      }
+    },
+    {
+      "name": "2-PACK_In_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_In_Load:": "N"
+      }
+    },
+    {
+      "name": "3-PACK_Up_burn.json",
+      "keyword_to_column": {
+        "WSpeed_Up:": "O"
+      }
+    },
+    {
+      "name": "4-PACK_Up_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_Up_Load:": "P"
+      }
+    },
+    {
+      "name": "5-PACK_De_burn.json",
+      "keyword_to_column": {
+        "WSpeed_De:": "Q"
+      }
+    },
+    {
+      "name": "6-PACK_De_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_De_Load:": "R"
+      }
+    },
+    {
+      "name": "1-CMD23_CMD25_In_burn.json",
+      "keyword_to_column": {
+        "WSpeed_In:": "S"
+      }
+    },
+    {
+      "name": "2-CMD23_CMD25_In_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_In_Load:": "T"
+      }
+    },
+    {
+      "name": "3-CMD23_CMD25_Up_burn.json",
+      "keyword_to_column": {
+        "WSpeed_Up:": "U"
+      }
+    },
+    {
+      "name": "4-CMD23_CMD25_Up_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_Up_Load:": "V"
+      }
+    },
+    {
+      "name": "5-CMD23_CMD25_De_burn.json",
+      "keyword_to_column": {
+        "WSpeed_De:": "W"
+      }
+    },
+    {
+      "name": "6-CMD23_CMD25_De_burn&load.json",
+      "keyword_to_column": {
+        "WSpeed_De_Load:": "X"
+      }
+    }
+  ]
+}
