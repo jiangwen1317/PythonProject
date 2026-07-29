@@ -9,7 +9,7 @@ a = Analysis(
     hiddenimports=[
         'matplotlib', 'matplotlib.pyplot', 'matplotlib.backends.backend_tkagg',
         'openpyxl', 'pandas', 'PIL', 'PIL.Image',
-        'GET_Data', 'GET_Data_HD_Tune',
+        'GET_Data', 'GET_Data_HD_Tune', 'data_core',
         'tkinter', 'tkinter.filedialog', 'tkinter.messagebox',
     ],
     hookspath=[],

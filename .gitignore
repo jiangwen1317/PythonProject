@@ -45,8 +45,9 @@ claudecode-analysis-engine/logs/
 # test_monitor runtime screenshots
 test_monitor/*.png
 
-# 基础竞品分析工具运行输出（目录及生成的数据文件，模板保留）
+# 基础竞品分析工具运行输出（目录及生成的数据文件，模板与测试保留）
 基础竞品分析工具/*/
+!基础竞品分析工具/tests/
 基础竞品分析工具/*.csv
 基础竞品分析工具/*.xlsx
 !基础竞品分析工具/竞品分析基本测试项模板.xlsx

@@ -7,6 +7,8 @@ from tkinter import filedialog, messagebox
 import pandas as pd
 from openpyxl import Workbook, load_workbook
 
+import data_core
+
 # 用户选择的数据文件夹路径
 FILE = ""
 
@@ -21,12 +23,7 @@ def file_name(file_dir, source_type):
     Returns:
         list: 文件路径列表；若未找到则返回 0
     """
-    file_list = []
-    for root, dirs, files in os.walk(file_dir):
-        for file in files:
-            if os.path.splitext(file)[1] == source_type:
-                file_list.append(os.path.join(root, file))
-
+    file_list = data_core.find_files(file_dir, source_type)
     return file_list if file_list else 0
 
 
@@ -81,7 +78,6 @@ def Pop_Up_Window_1():
 
 def process_fields(file_path, keys):
     """汇总关键字段写入Excel"""
-    temp = ''
     flag = 0
     lastfilepath = ""
 
@@ -98,16 +94,7 @@ def process_fields(file_path, keys):
     cnt = 0
     for txt_file in filename_txt:
         # 从路径反向解析：文件名\工具名\索引\板ID\路径
-        try:
-            filename, toolname, indx, boardID, filepath = txt_file[::-1].split('\\', 4)
-            lastfilepath = filepath
-        except ValueError:
-            # 路径层级不足时使用上次的路径
-            filename, toolname, indx, boardID = txt_file[::-1].split('\\', 3)
-            filepath = lastfilepath
-
-        toolname = toolname[::-1]
-        boardID = "boardID:" + boardID[::-1]
+        toolname, boardID, lastfilepath = data_core.parse_txt_path(txt_file, lastfilepath)
         toolname_new = toolname
 
         col = 3
@@ -119,20 +106,9 @@ def process_fields(file_path, keys):
                 config_name_for_check = toolname
                 with open(txt_file, 'rb') as f:
                     for line in f:
-                        try:
-                            get_buf = line.decode('utf-8')
-                        except UnicodeDecodeError:
-                            temp = ''
-                            for bchar in line:
-                                try:
-                                    temp += format(bchar, 'c')
-                                except UnicodeDecodeError:
-                                    temp += ' '
-                            get_buf = temp
-
+                        get_buf = data_core.decode_log_line(line)
                         if re.match("^Config_Name:", get_buf):
-                            tool_configename = get_buf.split('.', 1)
-                            config_name_for_check = tool_configename[0]
+                            config_name_for_check = data_core.extract_config_name(get_buf)
                             break
 
                 # 去重检查：如果重复则覆盖之前的行，否则新增行
@@ -151,32 +127,19 @@ def process_fields(file_path, keys):
                 # 第二遍扫描：正式提取数据
                 with open(txt_file, 'rb') as f:
                     for line in f:
-                        # 尝试UTF-8解码，失败则逐字符转换
-                        try:
-                            get_buf = line.decode('utf-8')
-                        except UnicodeDecodeError:
-                            temp = ''
-                            for bchar in line:
-                                try:
-                                    temp += format(bchar, 'c')
-                                except UnicodeDecodeError:
-                                    temp += ' '
-                            get_buf = temp
+                        get_buf = data_core.decode_log_line(line)
 
                         # 提取Config_Name作为工具配置名称
                         if re.match("^Config_Name:", get_buf):
                             if flag:
                                 toolname_new = toolname
-                            tool_configename = get_buf.split('.', 1)
-                            toolname_new = tool_configename[0]
+                            toolname_new = data_core.extract_config_name(get_buf)
                             flag = 1
 
                         # 匹配关键字并提取数据
                         for key in keys:
                             if re.match('^' + key, get_buf):
-                                if ',' in get_buf:
-                                    get_buf = get_buf.split(",", 1)[0]  # 取逗号前的值
-                                get_buf = get_buf.strip()
+                                get_buf = data_core.clean_matched_value(get_buf)
                                 col = save_board_error_info(worksheet, cnt, col, get_buf)
             except Exception as e:
                 print(f"处理文件{txt_file}时出错: {e}")
@@ -197,34 +160,14 @@ def process_fields(file_path, keys):
     df.to_csv(csv_file, index=False)
 
 
-def extract_key_value_pairs(input_string):
-    """提取键值对（格式：key1:value1,key2:value2）"""
-    pairs = input_string.split(',')
-    result = {}
-    for pair in pairs:
-        key_value = pair.split(':')
-        if len(key_value) == 2:
-            result[key_value[0]] = key_value[1]
-    return result
-
-
-def extract_key(key_value_pairs, key):
-    """从键值对中提取指定键的值"""
-    try:
-        return str(key_value_pairs[key])
-    except KeyError:
-        return None
+# 纯逻辑已拆分至 data_core，此处保留同名引用以兼容既有调用
+extract_key_value_pairs = data_core.extract_key_value_pairs
+extract_key = data_core.extract_key
 
 
 def write_cell(sheet, row, col, value):
     """安全写入单元格，尝试转为float"""
-    if value is None or value == '' or value == 'NULL':
-        sheet.cell(row, col, None)
-    else:
-        try:
-            sheet.cell(row, col, float(value))
-        except (ValueError, TypeError):
-            sheet.cell(row, col, str(value))
+    sheet.cell(row, col, data_core.normalize_cell_value(value))
 
 
 def Write_To_EVT_Report_0(FILE, filename, Save_In_Work_Directory):
