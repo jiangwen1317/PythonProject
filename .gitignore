@@ -1,6 +1,7 @@
 # Virtual environments
 venv/
 .venv/
+.verify_venv/
 env/
 
 # Python cache
@@ -33,3 +34,22 @@ pythonlib/
 # Qoder
 .qoder/
 .claude/
+
+# Generated databases
+*.db
+
+# claudecode-analysis-engine runtime outputs
+claudecode-analysis-engine/exports/
+claudecode-analysis-engine/logs/
+
+# test_monitor runtime screenshots
+test_monitor/*.png
+
+# 基础竞品分析工具运行输出（目录及生成的数据文件，模板保留）
+基础竞品分析工具/*/
+基础竞品分析工具/*.csv
+基础竞品分析工具/*.xlsx
+!基础竞品分析工具/竞品分析基本测试项模板.xlsx
+
+# 竞品分析工具运行输出
+竞品分析工具/comparison.xlsx
