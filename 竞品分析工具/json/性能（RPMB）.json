@@ -1,5 +1,5 @@
 {
-  "sheet_name": "性能（RPMB）",
+  "sheet_name": "RPMB性能",
   "tools": [
     {
       "name": "RPMBAnalysis.json",
