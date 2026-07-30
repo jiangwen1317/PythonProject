@@ -39,10 +39,6 @@ pythonlib/
 # Generated databases
 *.db
 
-# claudecode-analysis-engine runtime outputs
-claudecode-analysis-engine/exports/
-claudecode-analysis-engine/logs/
-
 # test_monitor runtime screenshots
 test_monitor/*.png
 
