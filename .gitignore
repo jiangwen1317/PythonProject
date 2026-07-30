@@ -49,5 +49,6 @@ test_monitor/*.png
 基础竞品分析工具/*.xlsx
 !基础竞品分析工具/竞品分析基本测试项模板.xlsx
 
-# 竞品分析工具运行输出
-竞品分析工具/comparison.xlsx
+# 竞品分析工具运行输出（comparison.xlsx 为必需输入模板，保留在版本控制中）
+竞品分析工具/竞品对比报告_*.xlsx
+竞品分析工具/comparison_含真实数据备份.xlsx

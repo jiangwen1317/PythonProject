@@ -1,0 +1,8 @@
+# Dev/test dependencies for the repo-root pre-commit test gate.
+# Install into the interpreter that runs the gate:
+#   python -m pip install -r requirements-dev.txt
+#
+# The modules covered by pytest.ini testpaths (data_core / extraction_core /
+# cdm_core and their tests) only use the Python standard library, so pytest
+# is the sole third-party requirement for `python -m pytest` at the repo root.
+pytest>=9.0.3

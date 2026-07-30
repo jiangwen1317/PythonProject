@@ -22,9 +22,9 @@
 
 ## 提交前验证（最小约束）
 
-任何 git 提交前必须先在仓库根目录运行 `python -m pytest`（`pytest.ini` 已配置 testpaths：`基础竞品分析工具/tests`、`关键字数据汇总/tests`、`竞品分析平滑度数据显示工具/tests`；`test_monitor` 已通过 norecursedirs 排除，因其 `test_monitor.py` 是运行时监控脚本，顶层导入 playwright/schedule/requests，被 pytest 收集会导致 ImportError 或副作用）。测试失败时**不得提交**，并如实报告失败输出。
+任何 git 提交前必须先在仓库根目录运行 `python -m pytest`。测试门禁的依赖声明在仓库根 `requirements-dev.txt`（testpaths 覆盖的核心模块均为纯标准库实现，pytest 是唯一第三方测试依赖），执行前先 `python -m pip install -r requirements-dev.txt`（`pytest.ini` 已配置 testpaths：`基础竞品分析工具/tests`、`关键字数据汇总/tests`、`竞品分析平滑度数据显示工具/tests`；`test_monitor` 已通过 norecursedirs 排除，因其 `test_monitor.py` 是运行时监控脚本，顶层导入 playwright/schedule/requests，被 pytest 收集会导致 ImportError 或副作用）。测试失败时**不得提交**，并如实报告失败输出。
 
-该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 `python -m pytest`，失败即阻止提交。钩子默认不生效，需在每个克隆本地手动启用一次：
+该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 pytest，失败即阻止提交。钩子按以下顺序选择解释器：环境变量 `PRECOMMIT_PYTHON` 显式指定 → 仓库根 `.venv` 中装有 pytest 的解释器 → PATH 上装有 pytest 的 `python`/`py`；找不到装有 pytest 的解释器时会输出「环境错误（非测试失败）」的引导信息并以退出码 2 阻止提交（区别于测试失败的退出码）。钩子默认不生效，需在每个克隆本地手动启用一次：
 
 ```
 git config core.hooksPath .githooks

@@ -4,13 +4,58 @@
 #   git config core.hooksPath .githooks
 # 停用：git config --unset core.hooksPath
 # 紧急绕过（不推荐，仅限明确知晓后果时）：git commit --no-verify
+#
+# 测试依赖声明在仓库根 requirements-dev.txt；解释器选择规则：
+#   1. 环境变量 PRECOMMIT_PYTHON（显式指定，缺 pytest 时直接报错不回退）；
+#   2. 仓库根 .venv 中装有 pytest 的解释器；
+#   3. PATH 上装有 pytest 的 python / py。
 
-echo "[pre-commit] 运行: python -m pytest（仓库根目录，加载 pytest.ini 的 testpaths）"
-
-# 在仓库根目录执行，确保 pytest.ini 被正确加载
+# 在仓库根目录执行，确保 pytest.ini 与 requirements-dev.txt 被正确定位
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-python -m pytest
+has_pytest() {
+    "$1" -m pytest --version >/dev/null 2>&1
+}
+
+PY=""
+if [ -n "$PRECOMMIT_PYTHON" ]; then
+    # 用户显式指定的解释器：缺依赖时不静默回退，直接给出引导
+    if has_pytest "$PRECOMMIT_PYTHON"; then
+        PY="$PRECOMMIT_PYTHON"
+    else
+        echo "[pre-commit] 环境错误（非测试失败）：PRECOMMIT_PYTHON 指定的解释器缺少 pytest：" >&2
+        echo "[pre-commit]   $PRECOMMIT_PYTHON" >&2
+        echo "[pre-commit] 请为该解释器安装测试依赖后重试：" >&2
+        echo "[pre-commit]   \"$PRECOMMIT_PYTHON\" -m pip install -r requirements-dev.txt" >&2
+        exit 2
+    fi
+else
+    for candidate in \
+        ".venv/Scripts/python.exe" \
+        ".venv/bin/python" \
+        "python" \
+        "py"
+    do
+        if has_pytest "$candidate"; then
+            PY="$candidate"
+            break
+        fi
+    done
+fi
+
+if [ -z "$PY" ]; then
+    echo "[pre-commit] 环境错误（非测试失败）：未找到装有 pytest 的 Python 解释器。" >&2
+    echo "[pre-commit] 已尝试：.venv/Scripts/python.exe、.venv/bin/python、python、py。" >&2
+    echo "[pre-commit] 请任选其一修复后重新提交：" >&2
+    echo "[pre-commit]   1. 为默认解释器安装测试依赖：python -m pip install -r requirements-dev.txt" >&2
+    echo "[pre-commit]   2. 显式指定装有依赖的解释器：设置环境变量 PRECOMMIT_PYTHON=<python 路径>" >&2
+    exit 2
+fi
+
+echo "[pre-commit] 使用解释器: $PY"
+echo "[pre-commit] 运行: $PY -m pytest（仓库根目录，加载 pytest.ini 的 testpaths）"
+
+"$PY" -m pytest
 status=$?
 
 if [ $status -ne 0 ]; then

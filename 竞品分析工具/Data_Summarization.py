@@ -9,12 +9,13 @@ import os
 import zipfile
 import tempfile
 import shutil
-import json
 import openpyxl
 from openpyxl.utils import column_index_from_string
 from openpyxl.styles import Alignment, Border, Side  # ✅ 新增 Border, Side
 from openpyxl.utils import get_column_letter
 import sys
+
+from config_core import ConfigValidationError, load_config_folder, validate_sheet_configs
 
 
 def get_exe_dir():
@@ -195,22 +196,13 @@ def process_folder(folder_path, excel_template, config_folder, meta_values=None)
     ✅ 新增：动态确定最后一列添加边框
     """
     try:
-        # --- 步骤1：加载配置文件夹下所有 .json ---
-        if not os.path.isdir(config_folder):
-            return False, f"❌ 配置路径必须是文件夹: {config_folder}"
+        # --- 步骤1：加载配置文件夹下所有 .json（解析失败即中止，不静默跳过）---
+        try:
+            loaded_configs = load_config_folder(config_folder)
+        except ConfigValidationError as e:
+            return False, f"❌ {e}"
 
-        json_files = [
-            os.path.join(config_folder, f)
-            for f in os.listdir(config_folder)
-            if f.lower().endswith('.json')
-        ]
-
-        # ✅ 按文件名排序，推荐命名：01_latency.json, 02_power.json
-        json_files.sort()
-        if not json_files:
-            return False, f"❌ 配置文件夹中未找到任何 .json 文件！请检查: {config_folder}"
-
-        print(f"【配置】加载 {len(json_files)} 个配置文件: {[os.path.basename(f) for f in json_files]}")
+        print(f"【配置】加载 {len(loaded_configs)} 个配置文件: {[name for name, _ in loaded_configs]}")
 
         # --- 步骤2：解压所有 ZIP ---
         extract_nested_zips(folder_path)
@@ -232,31 +224,26 @@ def process_folder(folder_path, excel_template, config_folder, meta_values=None)
         shutil.copy(excel_template, temp_file.name)
         wb = openpyxl.load_workbook(temp_file.name)
 
+        # ✅ 写入前统一校验：配置引用的 sheet_name 必须在模板中存在，缺失即明确中止
+        try:
+            validate_sheet_configs(loaded_configs, wb.sheetnames)
+        except ConfigValidationError as e:
+            os.remove(temp_file.name)
+            return False, f"❌ {e}"
+
         total_files_processed = 0
 
         # --- 步骤5：遍历每个 JSON 配置文件 ---
-        for config_file_path in json_files:
-            print(f"\n========== 加载配置: {os.path.basename(config_file_path)} ==========")
-            try:
-                with open(config_file_path, 'r', encoding='utf-8') as f:
-                    config_data = json.load(f)
-                    sheet_configs = config_data if isinstance(config_data, list) else [config_data]
-            except Exception as e:
-                print(f"【跳过】配置文件加载失败: {config_file_path} - {e}")
-                continue
+        for config_file_name, sheet_configs in loaded_configs:
+            print(f"\n========== 加载配置: {config_file_name} ==========")
 
             # --- 处理该 JSON 中的每个 sheet 配置组 ---
             for group_config in sheet_configs:
-                sheet_name = group_config.get("sheet_name", "Sheet1")
+                sheet_name = group_config["sheet_name"]  # 已通过前置校验，必然存在于模板
                 tools = group_config.get("tools", [])
 
                 if not tools:
                     print(f"【跳过】配置组 '{sheet_name}' 无工具定义")
-                    continue
-
-                if sheet_name not in wb.sheetnames:
-                    available = "、".join(wb.sheetnames)
-                    print(f"【跳过】模板中未找到工作表 '{sheet_name}'，可用：{available}")
                     continue
 
                 ws = wb[sheet_name]
