@@ -1,0 +1,24 @@
+#!/bin/sh
+# 提交前强制运行 pytest —— AGENTS.md「提交前验证（最小约束）」的机械强制点。
+# 本文件受版本控制，但默认不生效；每个克隆需手动启用一次（本地环境动作）：
+#   git config core.hooksPath .githooks
+# 停用：git config --unset core.hooksPath
+# 紧急绕过（不推荐，仅限明确知晓后果时）：git commit --no-verify
+
+echo "[pre-commit] 运行: python -m pytest（仓库根目录，加载 pytest.ini 的 testpaths）"
+
+# 在仓库根目录执行，确保 pytest.ini 被正确加载
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+python -m pytest
+status=$?
+
+if [ $status -ne 0 ]; then
+    echo "" >&2
+    echo "[pre-commit] pytest 失败（退出码 $status），已阻止本次提交。" >&2
+    echo "[pre-commit] 请修复失败用例后重新提交（约定：测试失败时不得提交）。" >&2
+    exit $status
+fi
+
+echo "[pre-commit] pytest 全部通过，放行提交。"
+exit 0

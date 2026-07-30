@@ -22,6 +22,18 @@
 - "按 JSON 测试项配置汇总竞品日志 / 按 PN 码对比" → `竞品分析工具/`。
 - "解析 RTMS 日志、查数据库、导 RMA 报告" → `claudecode-analysis-engine/`。
 
+## 提交前验证（最小约束）
+
+任何 git 提交前必须先在仓库根目录运行 `python -m pytest`（`pytest.ini` 已配置 testpaths：`claudecode-analysis-engine/tests`、`基础竞品分析工具/tests`、`关键字数据汇总/tests`、`竞品分析平滑度数据显示工具/tests`；`test_monitor` 已通过 norecursedirs 排除，因其 `test_monitor.py` 是运行时监控脚本，顶层导入 playwright/schedule/requests，被 pytest 收集会导致 ImportError 或副作用）。测试失败时**不得提交**，并如实报告失败输出。
+
+该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 `python -m pytest`，失败即阻止提交。钩子默认不生效，需在每个克隆本地手动启用一次：
+
+```
+git config core.hooksPath .githooks
+```
+
+停用执行 `git config --unset core.hooksPath`；`git commit --no-verify` 可临时绕过（不推荐）。
+
 ---
 
 ## 1. claudecode-analysis-engine — EMMC 测试日志数据库分析系统

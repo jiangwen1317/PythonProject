@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['1113-huizong.py'],
+    ['keyword_extraction.py'],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['extraction_core'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

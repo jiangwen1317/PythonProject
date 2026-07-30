@@ -2,6 +2,7 @@
 venv/
 .venv/
 .verify_venv/
+.reqcheck_venv/
 env/
 
 # Python cache

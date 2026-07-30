@@ -1,5 +1,4 @@
 import os
-import zipfile
 import tempfile
 import shutil
 import tkinter as tk
@@ -12,6 +11,13 @@ from openpyxl.utils import get_column_letter
 # ✅ 新增：支持多线程和消息队列
 import threading
 import queue
+
+# 核心提取逻辑已抽离至 extraction_core（纯逻辑，便于单元测试）
+from extraction_core import (
+    extract_content_after_keyword,
+    extract_nested_zips,
+    get_config_name,
+)
 
 # 配置与路径设置
 def get_script_dir():
@@ -27,119 +33,6 @@ SCRIPT_DIR = get_script_dir()
 
 DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, "template.xlsx")
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "config.json")
-
-# ========================
-# 核心功能函数（已增强支持提取全部）
-# ========================
-
-def extract_content_after_keyword(txt_path, keyword, last_only=True):
-    """
-    从TXT文件中提取指定关键字后的内容（关键字带冒号，如 "Max_Seq_Rd_Spd:"）
-    - 如果 last_only=True（默认）：返回最后一次出现的最后一个非空逗号值
-    - 如果 last_only=False：返回所有匹配行中提取出的值（列表）
-    """
-    try:
-        encodings = ['utf-8', 'gbk', 'latin1']
-        for encoding in encodings:
-            try:
-                with open(txt_path, 'r', encoding=encoding) as file:
-                    lines = file.readlines()
-
-                key_clean = keyword.strip()
-                all_results = []
-
-                # 全部模式正序遍历，否则倒序（取最后一次）
-                search_lines = reversed(lines) if last_only else lines
-
-                for line in search_lines:
-                    stripped_line = line.strip()
-                    if not stripped_line.startswith(key_clean):
-                        continue
-
-                    content_start = len(key_clean)
-                    if content_start >= len(stripped_line):
-                        continue
-                    content = stripped_line[content_start:].lstrip()
-
-                    parts = [p.strip() for p in content.split(',') if p.strip()]
-                    if parts:
-                        value = parts[-1]
-                        if last_only:
-                            return value  # 立即返回最后一次
-                        else:
-                            all_results.append(value)
-
-                if last_only:
-                    return None
-                else:
-                    return all_results or None
-
-            except (UnicodeDecodeError, PermissionError):
-                continue
-        return None
-    except Exception as e:
-        print(f"【错误】读取文件失败 {txt_path}: {e}")
-        return None
-
-
-def extract_nested_zips(start_dir, max_iterations=2):
-    """
-    递归解压所有 ZIP 文件，并在解压成功后删除原压缩包
-    :param start_dir: 起始目录
-    :param max_iterations: 最大解压轮数（防止无限循环）
-    """
-    print(f"【开始】深度解压 {start_dir} 下的所有 ZIP 文件，并删除压缩包...")
-
-    for iteration in range(1, max_iterations + 1):
-        extracted = False
-        zip_files = []
-
-        # 遍历收集所有 ZIP 文件
-        for root, _, files in os.walk(start_dir):
-            for file in files:
-                if file.lower().endswith('.zip'):
-                    zip_files.append(os.path.join(root, file))
-
-        if not zip_files:
-            print(f"【完成】第 {iteration} 轮：未发现 ZIP 文件，停止解压。")
-            break
-
-        print(f"【解压】第 {iteration} 轮：发现 {len(zip_files)} 个 ZIP 文件...")
-
-        # 逐个解压并删除
-        for zip_path in zip_files:
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as z:
-                    z.extractall(os.path.dirname(zip_path))
-                print(f"          已解压: {os.path.basename(zip_path)}")
-
-                # ✅ 解压成功后删除原 ZIP 文件
-                os.remove(zip_path)
-                print(f"          已删除: {os.path.basename(zip_path)}")
-                extracted = True
-
-            except Exception as e:
-                print(f"          解压失败: {os.path.basename(zip_path)} - {e}")
-                # 解压失败时不删除文件，保留以便检查
-                continue
-
-        if not extracted:
-            print(f"【完成】第 {iteration} 轮后无新文件解压，结束。")
-            break
-
-    print("【清理】所有可解压的 ZIP 文件已处理并删除。")
-
-
-def get_config_name(txt_file):
-    """从 txt 文件中找 Config_Name: 或 Device_Config_Name:，返回第一个找到的值"""
-    for keyword in ["Config_Name:", "Device_Config_Name       :"]:
-        value = extract_content_after_keyword(txt_file, keyword)
-        if value:
-            # 去掉换行和 .log 这类后缀（比如 "cfg.log" → "cfg"）
-            val = value.strip()
-            return val
-    return ""
-
 
 # ========================
 # 全局控制变量（新增，不影响原有逻辑）
@@ -469,65 +362,74 @@ def select_config_file():
 # GUI 主界面（已新增复选框）
 # ========================
 
-root = tk.Tk()
-root.title("关键字数据提取器V1.3")
-root.geometry("650x380")  # 稍微增加高度以容纳复选框
-root.resizable(False, False)
+def main():
+    """构建并启动 GUI 主界面（封装为函数，使模块可安全导入）"""
+    # GUI 控件供其他函数以全局方式引用，保持原有行为不变
+    global root, folder_entry, excel_entry, config_entry, status_label, extract_all_mode
 
-# --- 输入区域 ---
-tk.Label(root, text="ZIP文件夹路径：", font=("Arial", 10)).grid(row=0, column=0, padx=15, pady=12, sticky="e")
-folder_entry = tk.Entry(root, width=45, font=("Arial", 10))
-folder_entry.grid(row=0, column=1, padx=10, pady=10)
-tk.Button(root, text="浏览", command=select_folder, font=("Arial", 9)).grid(row=0, column=2, padx=8)
+    root = tk.Tk()
+    root.title("关键字数据提取器V1.3")
+    root.geometry("650x380")  # 稍微增加高度以容纳复选框
+    root.resizable(False, False)
 
-tk.Label(root, text="Excel模板：", font=("Arial", 10)).grid(row=1, column=0, padx=15, pady=12, sticky="e")
-excel_entry = tk.Entry(root, width=45, font=("Arial", 10))
-excel_entry.grid(row=1, column=1, padx=10, pady=10)
-tk.Button(root, text="浏览", command=select_excel_file, font=("Arial", 9)).grid(row=1, column=2, padx=8)
+    # --- 输入区域 ---
+    tk.Label(root, text="ZIP文件夹路径：", font=("Arial", 10)).grid(row=0, column=0, padx=15, pady=12, sticky="e")
+    folder_entry = tk.Entry(root, width=45, font=("Arial", 10))
+    folder_entry.grid(row=0, column=1, padx=10, pady=10)
+    tk.Button(root, text="浏览", command=select_folder, font=("Arial", 9)).grid(row=0, column=2, padx=8)
 
-tk.Label(root, text="配置文件：", font=("Arial", 10)).grid(row=2, column=0, padx=15, pady=12, sticky="e")
-config_entry = tk.Entry(root, width=45, font=("Arial", 10))
-config_entry.grid(row=2, column=1, padx=10, pady=10)
-tk.Button(root, text="浏览", command=select_config_file, font=("Arial", 9)).grid(row=2, column=2, padx=8)
+    tk.Label(root, text="Excel模板：", font=("Arial", 10)).grid(row=1, column=0, padx=15, pady=12, sticky="e")
+    excel_entry = tk.Entry(root, width=45, font=("Arial", 10))
+    excel_entry.grid(row=1, column=1, padx=10, pady=10)
+    tk.Button(root, text="浏览", command=select_excel_file, font=("Arial", 9)).grid(row=1, column=2, padx=8)
 
-# --- 自动填充默认路径 ---
-if os.path.exists(DEFAULT_TEMPLATE):
-    excel_entry.insert(0, DEFAULT_TEMPLATE)
-else:
-    print(f"【提示】未找到默认模板：{DEFAULT_TEMPLATE}")
+    tk.Label(root, text="配置文件：", font=("Arial", 10)).grid(row=2, column=0, padx=15, pady=12, sticky="e")
+    config_entry = tk.Entry(root, width=45, font=("Arial", 10))
+    config_entry.grid(row=2, column=1, padx=10, pady=10)
+    tk.Button(root, text="浏览", command=select_config_file, font=("Arial", 9)).grid(row=2, column=2, padx=8)
 
-if os.path.exists(DEFAULT_CONFIG):
-    config_entry.insert(0, DEFAULT_CONFIG)
-else:
-    print(f"【提示】未找到默认配置：{DEFAULT_CONFIG}")
+    # --- 自动填充默认路径 ---
+    if os.path.exists(DEFAULT_TEMPLATE):
+        excel_entry.insert(0, DEFAULT_TEMPLATE)
+    else:
+        print(f"【提示】未找到默认模板：{DEFAULT_TEMPLATE}")
 
-# --- 提示信息 ---
-tk.Label(root, text="提示：Excel模板和配置json文件将默认从程序目录中寻找，也可指定路径", fg="gray", font=("Arial", 9)).grid(row=3, column=1, sticky="w", pady=(5, 0))
+    if os.path.exists(DEFAULT_CONFIG):
+        config_entry.insert(0, DEFAULT_CONFIG)
+    else:
+        print(f"【提示】未找到默认配置：{DEFAULT_CONFIG}")
 
-# --- 新增：提取模式选择 ---
-extract_all_mode = tk.BooleanVar(value=False)
-tk.Checkbutton(
-    root,
-    text="提取全部匹配项（而非仅最后一次）",
-    variable=extract_all_mode,
-    font=("Arial", 9)
-).grid(row=4, column=1, sticky="w", padx=(80, 0), pady=(0, 10))
+    # --- 提示信息 ---
+    tk.Label(root, text="提示：Excel模板和配置json文件将默认从程序目录中寻找，也可指定路径", fg="gray", font=("Arial", 9)).grid(row=3, column=1, sticky="w", pady=(5, 0))
 
-# --- 执行按钮 ---
-tk.Button(
-    root,
-    text="开始提取",
-    command=run_script,
-    bg="#4CAF50",
-    fg="white",
-    font=("Arial", 11, "bold"),
-    width=15,
-    height=1
-).grid(row=5, column=1, pady=10)
+    # --- 新增：提取模式选择 ---
+    extract_all_mode = tk.BooleanVar(value=False)
+    tk.Checkbutton(
+        root,
+        text="提取全部匹配项（而非仅最后一次）",
+        variable=extract_all_mode,
+        font=("Arial", 9)
+    ).grid(row=4, column=1, sticky="w", padx=(80, 0), pady=(0, 10))
 
-# --- 状态栏 ---
-status_label = tk.Label(root, text="就绪", fg="blue", font=("Arial", 9))
-status_label.grid(row=6, column=0, columnspan=3, pady=10)
+    # --- 执行按钮 ---
+    tk.Button(
+        root,
+        text="开始提取",
+        command=run_script,
+        bg="#4CAF50",
+        fg="white",
+        font=("Arial", 11, "bold"),
+        width=15,
+        height=1
+    ).grid(row=5, column=1, pady=10)
 
-# 启动 GUI
-root.mainloop()
+    # --- 状态栏 ---
+    status_label = tk.Label(root, text="就绪", fg="blue", font=("Arial", 9))
+    status_label.grid(row=6, column=0, columnspan=3, pady=10)
+
+    # 启动 GUI
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

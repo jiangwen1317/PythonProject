@@ -8,7 +8,6 @@ from asyncio.windows_events import NULL
 from runpy import run_path
 import PySimpleGUI as sg
 import matplotlib.pyplot as plt
-import random
 import glob
 import openpyxl
 import pickle
@@ -16,38 +15,10 @@ import pandas as pd
 from pandas import Series,DataFrame
 import mplcursors
 
+# 纯函数已抽离至 cdm_core（仅依赖标准库，便于单元测试）
+from cdm_core import getColor, is_number, file_name
 
-#随机分配颜色代码
-def getColor(n):
-    color1 = random.sample(range(16, 255), n)
-    color2 = random.sample(range(16, 250), n)
-    color3 = random.sample(range(16, 250), n)
-    for i in range(n):
-        color1[i] = hex(color1[i])
-        color2[i] = hex(color2[i])
-        color3[i] = hex(color3[i])
-    ans = []
-    for i in range(n):
-        ans.append("#" + color1[i][2:] + color2[i][2:] + color3[i][2:])
-    return ans
 
-#判断字符串是否为数字
-def is_number(n):
-    try:
-        int(n)
-        return True
-    except ValueError:
-        return False
-
-#查找符合文件类型的文件
-def file_name(file_dir,source_type):   
-    L=[]
-    for root, dirs, files in os.walk(file_dir):  
-        for file in files:  
-            if os.path.splitext(file)[1] == source_type:  
-               L.append(os.path.splitext(file)[0])
-    return L 
- 
 #将excel文档转为csv文档 
 def excel_to_csv(file,to_file):
     #read_excel中sheetname含义
