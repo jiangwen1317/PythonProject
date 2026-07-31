@@ -22,7 +22,9 @@
 
 ## 提交前验证（最小约束）
 
-任何 git 提交前必须先在仓库根目录运行 `python -m pytest`。测试门禁的依赖声明在仓库根 `requirements-dev.txt`（testpaths 覆盖的核心模块均为纯标准库实现，pytest 是唯一第三方测试依赖），执行前先 `python -m pip install -r requirements-dev.txt`（`pytest.ini` 已配置 testpaths：`基础竞品分析工具/tests`、`关键字数据汇总/tests`、`竞品分析平滑度数据显示工具/tests`；`test_monitor` 已通过 norecursedirs 排除，因其 `test_monitor.py` 是运行时监控脚本，顶层导入 playwright/schedule/requests，被 pytest 收集会导致 ImportError 或副作用）。测试失败时**不得提交**，并如实报告失败输出。
+任何 git 提交前必须先在仓库根目录运行 `python -m pytest`。测试门禁的依赖声明在仓库根 `requirements-dev.txt`（testpaths 覆盖的核心模块均为纯标准库实现，pytest 是唯一第三方测试依赖），执行前先 `python -m pip install -r requirements-dev.txt`（收集范围以 `pytest.ini` 的 testpaths 为唯一事实源，即各工具目录下的 `tests/`；`test_monitor` 已通过 norecursedirs 排除，因其 `test_monitor.py` 是运行时监控脚本，顶层导入 playwright/schedule/requests，被 pytest 收集会导致 ImportError 或副作用）。测试失败时**不得提交**，并如实报告失败输出。
+
+**门禁覆盖边界（重要）**：pytest 门禁只验证从各工具抽离出来的**纯逻辑核心模块**（各工具目录下的 `*_core.py`，如 `data_core.py`、`extraction_core.py`、`config_core.py`、`cdm_core.py`；权威清单以 `pytest.ini` testpaths 实际收集到的测试为准）。其余源文件（各 GUI 入口如 `Power_and_Performance.py`/`main.py`/`keyword_extraction.py`、汇总主流程 `GET_Data.py`/`GET_Data_HD_Tune.py`/`Data_Summarization.py` 等，以及 `test_monitor/` 监控脚本）**不在机械检查范围内**。因此「pytest 通过」只代表核心纯函数行为未回归，**不代表** GUI 交互、Excel 写入、图表生成等主业务路径已验证；改动这些路径时仍需按各工具的运行命令手动验证。若在入口脚本中新增或发现可抽离的纯逻辑，优先抽入对应 `*_core.py` 并补最小单元测试；不为 GUI/绘图代码强行编写脆弱测试。
 
 该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 pytest，失败即阻止提交。钩子按以下顺序选择解释器：环境变量 `PRECOMMIT_PYTHON` 显式指定 → 仓库根 `.venv` 中装有 pytest 的解释器 → PATH 上装有 pytest 的 `python`/`py`；找不到装有 pytest 的解释器时会输出「环境错误（非测试失败）」的引导信息并以退出码 2 阻止提交（区别于测试失败的退出码）。钩子默认不生效，需在每个克隆本地手动启用一次：
 
@@ -31,6 +33,16 @@ git config core.hooksPath .githooks
 ```
 
 停用执行 `git config --unset core.hooksPath`；`git commit --no-verify` 可临时绕过（不推荐）。
+
+**门禁三层强制状态（重要）**——三层机制的强制力各不相同，读者须清楚当前哪层是强制的、哪层需人工确认：
+
+| 层级 | 载体 | 当前强制状态 |
+|---|---|---|
+| 本地钩子 | `.githooks/pre-commit` | **opt-in**：随仓库分发但默认不生效，需在每个克隆手动执行 `git config core.hooksPath .githooks` 启用；且 `--no-verify` 可绕过 |
+| CI | `.github/workflows/pytest.yml` | **随克隆推送即生效**（push / PR 到 main 自动运行 pytest），但**不阻断合并**——检查失败只标红，不阻止 merge |
+| 分支保护 | GitHub 仓库设置（Required status checks） | **未开启**。开启后 CI 失败才真正阻断合并；这是 GitHub 侧外部写操作，需单独授权，不在本仓库内直接操作 |
+
+结论：目前**没有任何一层能无条件强制阻断不合规提交进入 main**——本地钩子依赖每克隆手动启用，CI 失败不阻断合并。因此上文「测试失败时不得提交」仍需人工自觉遵守；若需机械强制阻断合并，须由仓库管理员在 GitHub 侧开启分支保护并将 pytest 检查设为必需（外部授权动作）。
 
 ---
 

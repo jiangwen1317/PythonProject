@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # pytest.ini 的 testpaths 仅收集三个纯逻辑测试目录，
+      # 收集范围以仓库根 pytest.ini 的 testpaths 为唯一事实源（各工具的纯逻辑测试目录），
       # 测试链只依赖标准库 + pytest，无需安装各工具的 GUI/绘图依赖
       - name: Install pytest
         run: python -m pip install pytest
