@@ -1,7 +1,7 @@
 # 仓库内机械门：推送/PR 时自动运行 python -m pytest，失败即检查不通过
 # 与 .githooks/pre-commit 本地钩子（需手动启用）互补，本工作流随克隆推送即生效
-# 注意：要让失败真正"阻断合并"，还需在 GitHub 侧开启分支保护并将本检查设为必需
-# （外部写操作，需单独授权，本仓库内不做）
+# GitHub 侧已为 main 开启分支保护并将本检查（pytest）设为 Required status check，
+# PR 中本检查失败会机械阻断合并（管理员豁免；详见 AGENTS.md「门禁三层强制状态」表）
 name: pytest
 
 on:
@@ -21,9 +21,10 @@ jobs:
           python-version: "3.12"
 
       # 收集范围以仓库根 pytest.ini 的 testpaths 为唯一事实源（各工具的纯逻辑测试目录），
-      # 测试链只依赖标准库 + pytest，无需安装各工具的 GUI/绘图依赖
+      # 测试依赖以仓库根 requirements-dev.txt 为唯一事实源（当前仅 pytest，测试链只依赖标准库，
+      # 无需安装各工具的 GUI/绘图依赖）
       - name: Install pytest
-        run: python -m pip install pytest
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Run pytest
         run: python -m pytest

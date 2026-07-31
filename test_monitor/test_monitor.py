@@ -17,15 +17,7 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass
 from playwright.sync_api import sync_playwright, Page, Browser
 
-
-@dataclass
-class NodeStatus:
-    """节点状态数据类"""
-    name: str
-    status: str
-    project: str
-    ip: str
-    details: Optional[str] = None
+from monitor_core import NodeStatus, format_error_message, is_error_status, validate_config
 
 
 @dataclass
@@ -138,9 +130,11 @@ class TestSystemMonitor:
         self._setup_logging()
 
     def _load_config(self, config_path: str) -> Dict:
-        """加载配置文件"""
+        """加载并校验配置文件（结构不完整时 fail-fast）"""
         with open(config_path, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+        validate_config(config, mode="task")
+        return config
 
     def _setup_logging(self):
         """设置日志"""
@@ -282,7 +276,7 @@ class TestSystemMonitor:
             logging.info(f"  节点: {node.name}, 状态: {node.status}")
 
             # 检查是否为错误状态
-            if node.status in self.config['monitor']['error_statuses']:
+            if is_error_status(node.status, self.config['monitor']['error_statuses']):
                 # 获取详细错误信息
                 node.details = self.get_node_details(node.name)
                 error_nodes.append(node)
@@ -331,21 +325,8 @@ class TestSystemMonitor:
             self._close_browser()
 
     def _format_error_message(self, error_nodes: List[NodeStatus]) -> str:
-        """格式化错误消息"""
-        message = "【测试系统告警】\n\n"
-        message += f"发现 {len(error_nodes)} 个节点异常:\n\n"
-
-        for node in error_nodes:
-            message += f"节点: {node.name}\n"
-            message += f"状态: {node.status}\n"
-            message += f"项目: {node.project}\n"
-            message += f"IP: {node.ip}\n"
-            if node.details:
-                message += f"详情: {node.details}\n"
-            message += "-" * 30 + "\n"
-
-        message += f"\n检查时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        return message
+        """格式化错误消息（纯拼装逻辑在 monitor_core.format_error_message）"""
+        return format_error_message(error_nodes)
 
     def run_scheduler(self):
         """运行定时调度"""

@@ -13,6 +13,8 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from playwright.sync_api import sync_playwright, Page, Browser, expect
 
+from monitor_core import extract_step_number, extract_tool_name, is_red_style, validate_config
+
 
 @dataclass
 class StepError:
@@ -44,9 +46,11 @@ class NodeMonitor:
         self._setup_logging()
 
     def _load_config(self, config_path: str) -> Dict:
-        """加载配置文件"""
+        """加载并校验配置文件（结构不完整时 fail-fast）"""
         with open(config_path, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+        validate_config(config, mode="node")
+        return config
 
     def _setup_logging(self):
         """设置日志"""
@@ -354,32 +358,22 @@ class NodeMonitor:
                     
                     # 检查是否是红色
                     style = icon.get_attribute('style') or ''
-                    
-                    # 检查多种红色表示方式
-                    is_red = (
-                        'rgb(255, 0, 0)' in style or 
-                        'rgb(255,0,0)' in style or
-                        '#ff0000' in style.lower() or
-                        '#f00' in style.lower() or
-                        'color: red' in style.lower()
-                    )
-                    if not is_red:
+
+                    # 多种红色写法的判定在 monitor_core.is_red_style
+                    if not is_red_style(style):
                         continue  # 跳过非红色图标
-                    
+
                     # 找到红色图标，现在往上找步骤号和工具名
                     # 往上查找最近的包含 "工具:" 的元素
                     parent = icon.locator('xpath=..')
                     tool_text = parent.inner_text().strip() if parent.count() > 0 else ''
-                    
+
                     # 提取工具名称
-                    tool_name = ""
-                    if '工具:' in tool_text:
-                        tool_name = tool_text.split('工具:')[1].split()[0]
-                    
+                    tool_name = extract_tool_name(tool_text)
+
                     # 往上查找步骤号（可能需要往上多层）
                     step_number = ""
-                    import re
-                    
+
                     # 尝试往上查找多层，直到找到“步骤”
                     for level in range(2, 8):  # 从 ../.. 到 ../../../../../../..
                         xpath_up = '/'.join(['..'] * level)
@@ -387,9 +381,8 @@ class NodeMonitor:
                         if ancestor.count() > 0:
                             try:
                                 anc_text = ancestor.inner_text()
-                                match = re.search(r'步骤(\d+)', anc_text)
-                                if match:
-                                    step_number = f"步骤{match.group(1)}"
+                                step_number = extract_step_number(anc_text)
+                                if step_number:
                                     break
                             except:
                                 continue
