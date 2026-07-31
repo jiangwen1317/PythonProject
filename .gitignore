@@ -5,6 +5,9 @@ venv/
 .reqcheck_venv/
 env/
 
+# 手动验证临时产物（HD Tune 平滑度主路径对比验证）
+.verify_hdtune/
+
 # Python cache
 __pycache__/
 *.pyc

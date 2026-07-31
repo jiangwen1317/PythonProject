@@ -107,3 +107,74 @@ def normalize_cell_value(value):
         return float(value)
     except (ValueError, TypeError):
         return str(value)
+
+
+# HD Tune 平滑度数据的两类配置名（含 CA 前缀变体）
+HD_TUNE_IDA_CONFIGS = ("HD Tune-IDA", "CA-HD Tune-IDA")
+HD_TUNE_CLEAN_CONFIGS = ("HD Tune-CLEAN", "CA-HD Tune-CLEAN")
+
+
+def hd_tune_sheet_kind(config_name):
+    """判定 HD Tune 配置名归属的平滑度工作表类别
+
+    Returns:
+        'IDA' / 'CLEAN'；非 HD Tune 配置返回 None
+    """
+    if config_name in HD_TUNE_IDA_CONFIGS:
+        return 'IDA'
+    if config_name in HD_TUNE_CLEAN_CONFIGS:
+        return 'CLEAN'
+    return None
+
+
+def parse_hd_tune_speed_values(line):
+    """从 Performance.csv 的一行中分离并解析写/读速度值
+
+    行格式：boardID:xxx,Config_Name:xxx,WriteSpeed:23,,WriteSpeed:24,,...,
+    摘要字段(如 TLC_Seq_Write:23),...,ReadSpeed:306,,ReadSpeed:310,,...
+    以第一个 'ReadSpeed:' 为分界：前段提取 WriteSpeed 数值，
+    后段提取 ReadSpeed 数值；带冒号的摘要字段一律排除。
+
+    Returns:
+        tuple: (write_values, read_values)，均为 int 列表
+    """
+    write_values = []  # 顺序写速度值
+    read_values = []   # 顺序读速度值
+
+    if "ReadSpeed:" in line:
+        write_part, read_part = line.split("ReadSpeed:", 1)
+    else:
+        write_part = line
+        read_part = ""
+
+    # 从写数据段提取WriteSpeed数值
+    for segment in write_part.split("WriteSpeed:"):
+        segment = segment.strip().rstrip(',').strip()
+        if not segment:
+            continue
+        # 取逗号前的数值（排除摘要字段如 "TLC_Seq_Write:23"）
+        val = segment.split(',')[0].strip()
+        if val and ':' not in val:
+            try:
+                write_values.append(int(val))
+            except ValueError:
+                pass
+
+    # 从读数据段提取ReadSpeed数值（去除残留的ReadSpeed:标签后逐个解析）
+    remaining = read_part
+    while remaining:
+        # 取逗号前的第一个值
+        first_val = remaining.split(',')[0].strip()
+        if first_val and ':' not in first_val:
+            try:
+                read_values.append(int(first_val))
+            except ValueError:
+                pass
+
+        # 跳到下一个ReadSpeed:标记后的值
+        next_pos = remaining.find("ReadSpeed:")
+        if next_pos == -1:
+            break
+        remaining = remaining[next_pos + len("ReadSpeed:"):]
+
+    return write_values, read_values

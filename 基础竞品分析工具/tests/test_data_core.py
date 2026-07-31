@@ -101,3 +101,46 @@ class TestNormalizeCellValue:
 
     def test_non_numeric_string_kept_as_str(self):
         assert data_core.normalize_cell_value("HS400") == "HS400"
+
+
+class TestHdTuneSheetKind:
+    @pytest.mark.parametrize("name", ["HD Tune-IDA", "CA-HD Tune-IDA"])
+    def test_ida_configs(self, name):
+        assert data_core.hd_tune_sheet_kind(name) == 'IDA'
+
+    @pytest.mark.parametrize("name", ["HD Tune-CLEAN", "CA-HD Tune-CLEAN"])
+    def test_clean_configs(self, name):
+        assert data_core.hd_tune_sheet_kind(name) == 'CLEAN'
+
+    @pytest.mark.parametrize("name", ["CDM-CA", "", None])
+    def test_non_hd_tune_returns_none(self, name):
+        assert data_core.hd_tune_sheet_kind(name) is None
+
+
+class TestParseHdTuneSpeedValues:
+    def test_write_and_read_segments_split_at_first_readspeed(self):
+        line = ("boardID:3,Config_Name:HD Tune-IDA,"
+                "WriteSpeed:23,,WriteSpeed:24,,TLC_Seq_Write:99,"
+                "ReadSpeed:306,,ReadSpeed:310,\n")
+        write_values, read_values = data_core.parse_hd_tune_speed_values(line)
+        assert write_values == [23, 24]
+        assert read_values == [306, 310]
+
+    def test_summary_fields_with_colon_are_excluded(self):
+        # 摘要字段（带冒号）不得混入速度值
+        line = "boardID:1,WriteSpeed:10,,Max_Seq_Wr_Spd:88,ReadSpeed:20,,TLC_Seq_Read:77\n"
+        write_values, read_values = data_core.parse_hd_tune_speed_values(line)
+        assert write_values == [10]
+        assert read_values == [20]
+
+    def test_no_readspeed_yields_empty_read_values(self):
+        line = "boardID:1,Config_Name:HD Tune-CLEAN,WriteSpeed:15,,WriteSpeed:16,\n"
+        write_values, read_values = data_core.parse_hd_tune_speed_values(line)
+        assert write_values == [15, 16]
+        assert read_values == []
+
+    def test_non_integer_values_are_skipped(self):
+        line = "WriteSpeed:abc,,WriteSpeed:12,ReadSpeed:xyz,,ReadSpeed:34,\n"
+        write_values, read_values = data_core.parse_hd_tune_speed_values(line)
+        assert write_values == [12]
+        assert read_values == [34]

@@ -11,6 +11,8 @@ from openpyxl.drawing.image import Image
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Border, Side
 
+import data_core
+
 
 def file_name(file_dir, source_type):
     """递归查找指定后缀的所有文件
@@ -22,12 +24,7 @@ def file_name(file_dir, source_type):
     Returns:
         list: 文件路径列表；若未找到则返回 0
     """
-    file_list = []
-    for root, dirs, files in os.walk(file_dir):
-        for file in files:
-            if os.path.splitext(file)[1] == source_type:
-                file_list.append(os.path.join(root, file))
-
+    file_list = data_core.find_files(file_dir, source_type)
     return file_list if file_list else 0
 
 
@@ -86,7 +83,6 @@ def Pop_Up_Window_1():
 
 def process_fields(file_path, keys):
     """从测试文件中提取关键字段，汇总到Excel和CSV"""
-    temp = ''
     lastfilepath = ""
 
     filename_txt = file_name(file_path, '.txt')
@@ -104,15 +100,7 @@ def process_fields(file_path, keys):
 
     for x in filename_txt:
         # 从路径反向解析：文件名\工具名\索引\板ID\路径
-        try:
-            filename, toolname, indx, boardID, filepath = x[::-1].split('\\', 4)
-            lastfilepath = filepath
-        except ValueError:
-            filename, toolname, indx, boardID = x[::-1].split('\\', 3)
-            filepath = lastfilepath
-
-        toolname = toolname[::-1]
-        boardID = "boardID:" + boardID[::-1]
+        toolname, boardID, lastfilepath = data_core.parse_txt_path(x, lastfilepath)
         toolname_new = toolname
 
         col = 3
@@ -125,22 +113,12 @@ def process_fields(file_path, keys):
         with open(x, 'rb') as f:
             line = f.readline()
             while line:
-                try:
-                    get_buf = line.decode('utf-8')
-                except UnicodeDecodeError:
-                    temp = ''
-                    for bchar in line:
-                        try:
-                            temp += format(bchar, 'c')
-                        except UnicodeDecodeError:
-                            temp += ' '
-                    get_buf = temp
+                get_buf = data_core.decode_log_line(line)
 
                 regex = re.compile("^Config_Name:")
                 match = regex.match(get_buf)
                 if match:
-                    tool_configename = get_buf.split('.', 1)
-                    config_name_for_check = tool_configename[0]
+                    config_name_for_check = data_core.extract_config_name(get_buf)
                     break
                 line = f.readline()
 
@@ -162,17 +140,7 @@ def process_fields(file_path, keys):
             line = f.readline()
 
             while line:
-                # 尝试UTF-8解码，失败则逐字符转换
-                try:
-                    get_buf = line.decode('utf-8')
-                except UnicodeDecodeError:
-                    temp = ''
-                    for bchar in line:
-                        try:
-                            temp += format(bchar, 'c')
-                        except UnicodeDecodeError:
-                            temp += ' '
-                    get_buf = temp
+                get_buf = data_core.decode_log_line(line)
 
                 # 提取Config_Name作为工具配置名称
                 regex = re.compile("^Config_Name:")
@@ -180,8 +148,7 @@ def process_fields(file_path, keys):
                 if match:
                     if flag:
                         toolname_new = toolname
-                    tool_configename = get_buf.split('.', 1)
-                    toolname_new = tool_configename[0]
+                    toolname_new = data_core.extract_config_name(get_buf)
                     flag = 1
 
                 # 匹配关键字并提取数据
@@ -191,9 +158,7 @@ def process_fields(file_path, keys):
                     match = regex.match(get_buf)
 
                     if match:
-                        if ',' in get_buf:
-                            get_buf, _ = get_buf.split(",", 1)  # 取逗号前的值
-                        get_buf = get_buf.strip()
+                        get_buf = data_core.clean_matched_value(get_buf)
                         col = save_boardErrinfo(worksheet, cnt, col, get_buf)
 
                 line = f.readline()
@@ -212,23 +177,9 @@ def process_fields(file_path, keys):
     df.to_csv(csv_file, index=False)
 
 
-def extract_key_value_pairs(input_string):
-    """从字符串解析键值对（格式：key1:value1,key2:value2）"""
-    pairs = input_string.split(',')
-    result = {}
-    for pair in pairs:
-        key_value = pair.split(':')
-        if len(key_value) == 2:
-            result[key_value[0]] = key_value[1]
-    return result
-
-
-def extract_key(key_value_pairs, key):
-    """安全提取指定键的值，不存在则返回 None"""
-    try:
-        return str(key_value_pairs[key])
-    except KeyError:
-        return None
+# 纯逻辑已拆分至 data_core，此处保留同名引用以兼容既有调用
+extract_key_value_pairs = data_core.extract_key_value_pairs
+extract_key = data_core.extract_key
 
 
 def Write_To_EVT_Report_0(FILE, filename, Save_In_Work_Directory, SheetName1, SheetName2):
@@ -255,59 +206,20 @@ def Write_To_EVT_Report_0(FILE, filename, Save_In_Work_Directory, SheetName1, Sh
             key_value_pairs = extract_key_value_pairs(line)
             config_name = extract_key(key_value_pairs, 'Config_Name')
 
-            # 仅处理HD Tune配置
-            if config_name not in ["HD Tune-IDA", "CA-HD Tune-IDA",
-                                    "HD Tune-CLEAN", "CA-HD Tune-CLEAN"]:
+            # 仅处理HD Tune配置（IDA/CLEAN 两类，含 CA 前缀变体）
+            sheet_kind = data_core.hd_tune_sheet_kind(config_name)
+            if sheet_kind is None:
                 line = f.readline()
                 continue
 
             # 提取boardID用于第1行标题
             bid = extract_key(key_value_pairs, 'boardID')
 
-            # 分离WriteSpeed和ReadSpeed段
-            # CSV行格式：boardID:xxx,Config_Name:xxx,WriteSpeed:23,,WriteSpeed:23,,...,摘要字段,...,ReadSpeed:306,,...
-            write_values = []  # 顺序写速度值
-            read_values = []   # 顺序读速度值
-
-            if "ReadSpeed:" in line:
-                # 以ReadSpeed:为分界，前面是写数据段，后面是读数据段
-                write_part, read_part = line.split("ReadSpeed:", 1)
-            else:
-                write_part = line
-                read_part = ""
-
-            # 从写数据段提取WriteSpeed数值
-            for segment in write_part.split("WriteSpeed:"):
-                segment = segment.strip().rstrip(',').strip()
-                if not segment:
-                    continue
-                # 取逗号前的数值（排除摘要字段如 "TLC_Seq_Write:23"）
-                val = segment.split(',')[0].strip()
-                if val and ':' not in val:
-                    try:
-                        write_values.append(int(val))
-                    except ValueError:
-                        pass
-
-            # 从读数据段提取ReadSpeed数值（去除残留的ReadSpeed:标签后逐个解析）
-            remaining = read_part
-            while remaining:
-                # 取逗号前的第一个值
-                first_val = remaining.split(',')[0].strip()
-                if first_val and ':' not in first_val:
-                    try:
-                        read_values.append(int(first_val))
-                    except ValueError:
-                        pass
-
-                # 跳到下一个ReadSpeed:标记后的值
-                next_pos = remaining.find("ReadSpeed:")
-                if next_pos == -1:
-                    break
-                remaining = remaining[next_pos + len("ReadSpeed:"):]
+            # 分离WriteSpeed和ReadSpeed段并解析数值（纯逻辑已拆分至 data_core）
+            write_values, read_values = data_core.parse_hd_tune_speed_values(line)
 
             # 确定目标工作表和列号
-            is_ida = config_name in ["HD Tune-IDA", "CA-HD Tune-IDA"]
+            is_ida = sheet_kind == 'IDA'
             ws = wb1 if is_ida else wb2
             col = col_ida if is_ida else col_clean
 
