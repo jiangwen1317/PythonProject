@@ -2,7 +2,7 @@
 
 本仓库是 5 个**互相独立**的 Python 小工具的集合，各目录之间**没有任何跨目录 import、不共享代码**（功能相似处均为各自独立实现，如多处各自复制了嵌套 ZIP 解压函数）。修改任一工具时只需关注其所在目录，不会影响其他目录。
 
-项目规则（Rules）统一放在 `.qoder/rules/` 目录，当前已包含 `commit-pytest-gate.md`（提交前 pytest 门禁，always_on 强制生效）；后续新增项目规则继续落在此目录。
+项目规则（Rules）统一放在 `.qoder/rules/` 目录，当前已包含 `commit-pytest-gate.md`（**提交类回合强制流程**，always_on 强制生效）；后续新增项目规则继续落在此目录。该规则是「提交前评估 → pytest 门禁 → 确认提交」这一重复流程的项目级持久承载，完整记录其触发条件（本回合将执行 `git commit`）、评估维度（提交粒度、敏感内容洁净性、门禁覆盖判断与免测路径手动验证、提交信息格式）与验证关口（pytest 摘要数字、提交前用户确认）。该流程**不依赖**用户级 auto-commit 技能：技能仅是便捷入口，缺失时按规则中的三步手动执行即为等效流程。
 
 ## 目录总览与任务路由
 
@@ -24,25 +24,32 @@
 
 任何 git 提交前必须先在仓库根目录运行 `python -m pytest`。测试门禁的依赖声明在仓库根 `requirements-dev.txt`（testpaths 覆盖的核心模块均为纯标准库实现，pytest 是唯一第三方测试依赖），执行前先 `python -m pip install -r requirements-dev.txt`（收集范围以 `pytest.ini` 的 testpaths 为唯一事实源，即各工具目录下的 `tests/`，含 `test_monitor/tests`；`test_monitor` 根目录仍通过 norecursedirs 排除递归发现，因其 `test_monitor.py` 是运行时监控脚本，顶层导入 playwright/schedule/requests，被 pytest 收集会导致 ImportError 或副作用）。测试失败时**不得提交**，并如实报告失败输出。
 
-**门禁覆盖边界（重要）**：pytest 门禁只验证从各工具抽离出来的**纯逻辑核心模块**（各工具目录下的 `*_core.py`，如 `data_core.py`、`extraction_core.py`、`config_core.py`、`cdm_core.py`、`monitor_core.py`；权威清单以 `pytest.ini` testpaths 实际收集到的测试为准）。其余源文件（各 GUI 入口如 `Power_and_Performance.py`/`main.py`/`keyword_extraction.py`、汇总主流程 `GET_Data.py`/`GET_Data_HD_Tune.py`/`Data_Summarization.py` 等，以及 `test_monitor/` 的两个监控脚本本体）**不在机械检查范围内**。因此「pytest 通过」只代表核心纯函数行为未回归，**不代表** GUI 交互、Excel 写入、图表生成等主业务路径已验证；改动这些路径时仍需按各工具的运行命令手动验证。若在入口脚本中新增或发现可抽离的纯逻辑，优先抽入对应 `*_core.py` 并补最小单元测试；不为 GUI/绘图代码强行编写脆弱测试。
+**门禁覆盖边界（重要）**：pytest 门禁只验证从各工具抽离出来的**纯逻辑核心模块**（各工具目录下的 `*_core.py`，如 `data_core.py`、`extraction_core.py`、`config_core.py`、`cdm_core.py`、`monitor_core.py`；权威清单以 `pytest.ini` testpaths 实际收集到的测试为准）。其余源文件（各 GUI 入口如 `Power_and_Performance.py`/`main.py`/`keyword_extraction.py`、汇总主流程 `GET_Data.py`/`GET_Data_HD_Tune.py`/`Data_Summarization.py` 等）**不在机械检查范围内**。例外：`test_monitor/` 的两个监控脚本本体（`test_monitor.py`/`node_monitor.py`）有一层最小冒烟检查（`test_monitor/tests/test_scripts_smoke.py`，桩掉第三方依赖后只验证「可导入 + CLI 参数解析」，不触发浏览器/网络副作用），其 Playwright 页面交互与通知推送路径仍属免测范围。因此「pytest 通过」只代表核心纯函数行为与上述冒烟层未回归，**不代表** GUI 交互、Excel 写入、图表生成、页面自动化等主业务路径已验证；改动这些路径时仍需按各工具的运行命令手动验证。若在入口脚本中新增或发现可抽离的纯逻辑，优先抽入对应 `*_core.py` 并补最小单元测试；不为 GUI/绘图代码强行编写脆弱测试。
 
-该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 pytest，失败即阻止提交。钩子按以下顺序选择解释器：环境变量 `PRECOMMIT_PYTHON` 显式指定 → 仓库根 `.venv` 中装有 pytest 的解释器 → PATH 上装有 pytest 的 `python`/`py`；找不到装有 pytest 的解释器时会输出「环境错误（非测试失败）」的引导信息并以退出码 2 阻止提交（区别于测试失败的退出码）。钩子默认不生效，需在每个克隆本地手动启用一次：
+该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 pytest，失败即阻止提交。钩子按以下顺序选择解释器：环境变量 `PRECOMMIT_PYTHON` 显式指定 → 仓库根 `.venv` 中装有 pytest 的解释器 → PATH 上装有 pytest 的 `python`/`py`；找不到装有 pytest 的解释器时会输出「环境错误（非测试失败）」的引导信息并以退出码 2 阻止提交（区别于测试失败的退出码）。
+
+**钩子启用是入职/环境初始化的必做步骤**：每个新克隆在开始开发前，必须在仓库根目录运行一次环境初始化脚本 `setup-dev.bat`（安装 `requirements-dev.txt` 依赖 → 执行 `git config core.hooksPath .githooks` → 自动核对启用结果），或手动执行等效命令：
 
 ```
+python -m pip install -r requirements-dev.txt
 git config core.hooksPath .githooks
 ```
 
-停用执行 `git config --unset core.hooksPath`；`git commit --no-verify` 可临时绕过（不推荐）。
+核对方式：运行 `git config core.hooksPath`，输出 `.githooks` 即为已启用；无输出即未启用，须补跑上述初始化步骤。停用执行 `git config --unset core.hooksPath`；`git commit --no-verify` 可临时绕过（不推荐）。
+
+**本地 git 输出编码约定**：每个本地克隆还须执行一次 `git config core.quotepath false`（仅本地环境配置，不改仓库内容）。原因：本仓库大量目录为中文名（如 `基础竞品分析工具/`），git 默认会将非 ASCII 路径转义为八进制序列（`\346\...`），导致 `git log --numstat` 等输出无法被历史分析工具按目录正确聚合；关闭 quotepath 后中文路径在 git 输出中原样显示。核对方式：`git config core.quotepath` 输出 `false`，且 `git log --numstat` 中的中文路径不再出现八进制转义。
+
+**Claude Code 本地权限白名单（2026-07 裁决：保留并对齐门禁）**：Claude Code 仍在本仓库使用，其本地配置 `.claude/settings.json`（被 `.gitignore` 忽略，不入库）的权限白名单须覆盖门禁命令的裸形式 `Bash(python -m pytest)`，与 `.qoder/rules/commit-pytest-gate.md` 要求的门禁命令保持一致；原有 `--collect-only`、`-v --tb=short` 等变体条目保留。若将来停用 Claude Code，删除该文件前须经用户显式确认。
 
 **门禁三层强制状态（重要）**——三层机制的强制力各不相同，读者须清楚当前哪层是强制的、哪层需人工确认：
 
 | 层级 | 载体 | 当前强制状态 |
 |---|---|---|
-| 本地钩子 | `.githooks/pre-commit` | **opt-in**：随仓库分发但默认不生效，需在每个克隆手动执行 `git config core.hooksPath .githooks` 启用；且 `--no-verify` 可绕过 |
+| 本地钩子 | `.githooks/pre-commit` | **入职必做（初始化步骤强制）**：随仓库分发，git 机制上默认不生效，但已将启用固化为每个克隆的环境初始化必做步骤（运行仓库根 `setup-dev.bat`，脚本自动启用并核对）；核对方式为 `git config core.hooksPath` 输出 `.githooks`；`--no-verify` 仍可绕过（不推荐） |
 | CI | `.github/workflows/pytest.yml` | **随克隆推送即生效**（push / PR 到 main 自动运行 pytest），但**不阻断合并**——检查失败只标红，不阻止 merge |
 | 分支保护 | GitHub 仓库设置（Required status checks） | **已开启**（2026-07，经仓库管理员授权配置）：main 分支要求 `pytest` 检查通过才允许合并 PR，CI 失败机械阻断合并。当前配置：`enforce_admins=false`（管理员可直接 push main 或覆盖合并，日常直推工作流不受影响）、`strict=false`（不要求分支先同步到最新 main） |
 
-结论：**走 PR 流程的合并已被机械阻断**——pytest 检查失败的 PR 无法合并进 main。剩余缺口：管理员豁免（`enforce_admins=false`）意味着管理员直接 push 到 main 不经过该门禁，此路径仍依赖本地钩子（opt-in）与人工自觉遵守「测试失败时不得提交」；若需对管理员也强制，须在 GitHub 侧将 `enforce_admins` 设为 true（代价是所有改动必须走分支 + PR）。
+结论：**走 PR 流程的合并已被机械阻断**——pytest 检查失败的 PR 无法合并进 main。管理员直推 main 的路径由本地钩子兜底：**最终决策（2026-07）**——在「(a) GitHub 侧 `enforce_admins=true` + 全面改走 PR」与「(b) 钩子启用固化为环境初始化必做步骤」之间选定 **(b)**，理由是保留日常直推工作流、且不依赖外部设置变更授权；(a) 保留为后续可升级项，若将来需要对管理员也做服务端强制，须经仓库管理员显式授权后在 GitHub 侧将 `enforce_admins` 设为 true（代价是所有改动必须走分支 + PR）。(b) 的机械兜底链条：`setup-dev.bat` 启用钩子 → 钩子在每次提交前强制运行 pytest → 失败即阻止提交；剩余缺口仅为 `--no-verify` 显式绕过与未跑初始化的克隆，均可用核对命令 `git config core.hooksPath` 一步检出。
 
 ---
 
