@@ -8,31 +8,18 @@
 import yaml
 import time
 import logging
-from datetime import datetime
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
 from playwright.sync_api import sync_playwright, Page, Browser, expect
 
-from monitor_core import extract_step_number, extract_tool_name, is_red_style, validate_config
-
-
-@dataclass
-class StepError:
-    """步骤错误信息"""
-    step_number: str      # 步骤编号（如：步骤17）
-    tool_name: str        # 工具名称（如：CDM）
-    error_icon: str       # 错误图标类型
-
-
-@dataclass
-class NodeCheckResult:
-    """节点检查结果"""
-    node_name: str
-    task_name: str       # 节点当前运行的任务
-    ip: str
-    status: str          # 节点整体状态（如：FAIL）
-    errors: List[StepError]  # 出错的步骤列表
-    has_error: bool
+from monitor_core import (
+    NodeCheckResult,
+    StepError,
+    extract_step_number,
+    extract_tool_name,
+    format_node_results_report,
+    is_red_style,
+    validate_config,
+)
 
 
 class NodeMonitor:
@@ -486,46 +473,9 @@ class NodeMonitor:
 
     def display_results(self, results: List[NodeCheckResult]):
         """
-        在本地显示检查结果
+        在本地显示检查结果（汇总与拼装逻辑在 monitor_core.format_node_results_report）
         """
-        print("\n" + "="*60)
-        print("节点监控检查结果")
-        print("="*60)
-        print(f"检查时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"检查节点数: {len(results)}")
-        print("="*60)
-
-        error_count = sum(1 for r in results if r and r.has_error)
-        not_found_count = sum(1 for r in results if r and r.status == "NOT_FOUND")
-
-        print(f"\n正常节点: {len(results) - error_count - not_found_count}")
-        print(f"异常节点: {error_count}")
-        print(f"未找到节点: {not_found_count}")
-
-        if error_count > 0:
-            print("\n" + "-"*60)
-            print("【异常节点详情】")
-            print("-"*60)
-
-            for result in results:
-                if result and result.has_error:
-                    print(f"\n❌ 节点: {result.node_name}")
-                    print(f"   IP: {result.ip}")
-                    print(f"   任务: {result.task_name}")
-                    print(f"   状态: {result.status}")
-                    print(f"   错误步骤:")
-                    for error in result.errors:
-                        print(f"     - {error.step_number}: {error.tool_name} ({error.error_icon})")
-
-        if not_found_count > 0:
-            print("\n" + "-"*60)
-            print("【未找到的节点】")
-            print("-"*60)
-            for result in results:
-                if result and result.status == "NOT_FOUND":
-                    print(f"   - {result.node_name}")
-
-        print("\n" + "="*60)
+        print(format_node_results_report(results))
 
     def run(self, headless: bool = True, debug_pause: bool = False):
         """

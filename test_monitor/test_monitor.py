@@ -17,7 +17,15 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass
 from playwright.sync_api import sync_playwright, Page, Browser
 
-from monitor_core import NodeStatus, format_error_message, is_error_status, validate_config
+from monitor_core import (
+    NodeStatus,
+    build_dingtalk_signed_url,
+    build_task_url,
+    format_error_message,
+    is_error_status,
+    parse_node_row,
+    validate_config,
+)
 
 
 @dataclass
@@ -72,22 +80,9 @@ class NotificationSender:
         webhook_url = self.config['dingtalk']['webhook_url']
         secret = self.config['dingtalk'].get('secret')
 
-        # 如果需要加签
+        # 如果需要加签（签名算法在 monitor_core.build_dingtalk_signed_url）
         if secret:
-            import base64
-            import hashlib
-            import hmac
-            import urllib.parse
-
-            timestamp = str(round(time.time() * 1000))
-            string_to_sign = f"{timestamp}\n{secret}"
-            hmac_code = hmac.new(
-                secret.encode('utf-8'),
-                string_to_sign.encode('utf-8'),
-                digestmod=hashlib.sha256
-            ).digest()
-            sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))
-            webhook_url = f"{webhook_url}&timestamp={timestamp}&sign={sign}"
+            webhook_url = build_dingtalk_signed_url(webhook_url, secret)
 
         data = {
             "msgtype": "text",
@@ -206,7 +201,7 @@ class TestSystemMonitor:
         try:
             # 导航到任务详情页
             # 注意：这里需要根据实际URL结构调整
-            task_url = f"{self.config['test_system']['url']}/task/{task_id}"
+            task_url = build_task_url(self.config['test_system']['url'], task_id)
             self.page.goto(task_url, wait_until='networkidle')
 
             # 等待节点列表加载
@@ -217,21 +212,12 @@ class TestSystemMonitor:
 
             for row in rows:
                 try:
-                    # 提取节点信息
+                    # 提取节点信息（列映射在 monitor_core.parse_node_row）
                     # 注意：这里需要根据实际页面结构调整选择器
                     cells = row.query_selector_all('td')
-                    if len(cells) >= 8:
-                        node_name = cells[2].inner_text().strip()  # 节点名称
-                        project = cells[6].inner_text().strip()    # 项目
-                        status = cells[7].inner_text().strip()     # 状态
-                        ip = cells[8].inner_text().strip() if len(cells) > 8 else ""  # IP
-
-                        nodes.append(NodeStatus(
-                            name=node_name,
-                            status=status,
-                            project=project,
-                            ip=ip
-                        ))
+                    node = parse_node_row([cell.inner_text() for cell in cells])
+                    if node:
+                        nodes.append(node)
                 except Exception as e:
                     logging.warning(f"解析节点行失败: {e}")
                     continue
