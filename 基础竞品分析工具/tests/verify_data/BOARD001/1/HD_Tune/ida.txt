@@ -1,0 +1,25 @@
+#!log
+Platform:DM3720
+DeviceIP:10.2.193.188
+PF_SF_Ver:V1.0
+Config_Name:HD Tune-IDA.json
+WriteSpeed:257,
+WriteSpeed:258,
+WriteSpeed:258,
+WriteSpeed:257,
+WriteSpeed:258,
+WriteSpeed:256,
+WriteSpeed:257,
+WriteSpeed:258,
+WriteSpeed:255,
+WriteSpeed:257,
+ReadSpeed:334,
+ReadSpeed:334,
+ReadSpeed:335,
+ReadSpeed:333,
+ReadSpeed:334,
+ReadSpeed:336,
+ReadSpeed:334,
+ReadSpeed:335,
+ReadSpeed:333,
+ReadSpeed:334,

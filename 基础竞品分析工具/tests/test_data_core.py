@@ -144,3 +144,35 @@ class TestParseHdTuneSpeedValues:
         write_values, read_values = data_core.parse_hd_tune_speed_values(line)
         assert write_values == [12]
         assert read_values == [34]
+
+
+class TestDiffCellMaps:
+    def test_identical_maps_are_same(self):
+        m = {(1, 1): "boardID:3", (2, 1): 257}
+        result = data_core.diff_cell_maps(m, dict(m))
+        assert result['same'] is True
+        assert result['diff_keys'] == []
+        assert result['count_a'] == result['count_b'] == 2
+
+    def test_value_difference_detected(self):
+        a = {(2, 1): 257, (2, 2): 300}
+        b = {(2, 1): 257, (2, 2): 299}
+        result = data_core.diff_cell_maps(a, b)
+        assert result['same'] is False
+        assert result['diff_keys'] == [(2, 2)]
+
+    def test_missing_key_on_one_side_detected(self):
+        a = {(1, 1): "x", (2, 1): 10}
+        b = {(1, 1): "x"}
+        result = data_core.diff_cell_maps(a, b)
+        assert result['same'] is False
+        assert (2, 1) in result['diff_keys']
+        assert result['count_a'] == 2 and result['count_b'] == 1
+
+    def test_diff_keys_capped_at_max_samples(self):
+        a = {(i, 1): i for i in range(10)}
+        b = {}
+        result = data_core.diff_cell_maps(a, b, max_samples=3)
+        assert result['same'] is False
+        assert len(result['diff_keys']) == 3
+

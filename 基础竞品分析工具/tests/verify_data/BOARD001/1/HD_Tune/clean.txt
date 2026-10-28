@@ -1,0 +1,21 @@
+#!log
+Platform:DM3720
+DeviceIP:10.2.193.188
+PF_SF_Ver:V1.0
+Config_Name:HD Tune-CLEAN.json
+WriteSpeed:180,
+WriteSpeed:181,
+WriteSpeed:179,
+WriteSpeed:182,
+WriteSpeed:180,
+WriteSpeed:181,
+WriteSpeed:178,
+WriteSpeed:180,
+ReadSpeed:290,
+ReadSpeed:291,
+ReadSpeed:289,
+ReadSpeed:292,
+ReadSpeed:290,
+ReadSpeed:291,
+ReadSpeed:288,
+ReadSpeed:290,

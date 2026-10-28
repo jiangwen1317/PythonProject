@@ -26,6 +26,15 @@
 
 **门禁覆盖边界（重要）**：pytest 门禁只验证从各工具抽离出来的**纯逻辑核心模块**（各工具目录下的 `*_core.py`，如 `data_core.py`、`extraction_core.py`、`config_core.py`、`cdm_core.py`、`monitor_core.py`；权威清单以 `pytest.ini` testpaths 实际收集到的测试为准）。其余源文件（各 GUI 入口如 `Power_and_Performance.py`/`main.py`/`keyword_extraction.py`、汇总主流程 `GET_Data.py`/`GET_Data_HD_Tune.py`/`Data_Summarization.py` 等）**不在机械检查范围内**。例外：`test_monitor/` 的两个监控脚本本体（`test_monitor.py`/`node_monitor.py`）有一层最小冒烟检查（`test_monitor/tests/test_scripts_smoke.py`，桩掉第三方依赖后只验证「可导入 + CLI 参数解析」，不触发浏览器/网络副作用），其 Playwright 页面交互与通知推送路径仍属免测范围。因此「pytest 通过」只代表核心纯函数行为与上述冒烟层未回归，**不代表** GUI 交互、Excel 写入、图表生成、页面自动化等主业务路径已验证；改动这些路径时仍需按各工具的运行命令手动验证。若在入口脚本中新增或发现可抽离的纯逻辑，优先抽入对应 `*_core.py` 并补最小单元测试；不为 GUI/绘图代码强行编写脆弱测试。
 
+**免测路径验证入口（改动最热的平滑度主流程 GET_Data_HD_Tune.Speed_Collect 时优先使用）**：仓库内已提交一个可发现的 A/B 回归比对脚本 `基础竞品分析工具/tests/verify_mainflow.py`（不匹配 `test_*.py`，故不被 pytest 收集，仅供手动验证），随仓库分发一份最小 HD_Tune 样例 `基础竞品分析工具/tests/verify_data/`，可在任何克隆复现。它把基线版（默认 `HEAD`）与工作区版的 `Speed_Collect` 各跑一遍，比对中间产物 `Performance.csv`（逐字节）与 `平滑度曲线-IDA`/`平滑度曲线-CLEAN` 两个 Sheet 的全部非空单元格（比对复用 `data_core.diff_cell_maps` 纯逻辑）。运行命令（需装有 pandas/openpyxl/tkinter 的该工具运行环境，即 `python Power_and_Performance.py` 所用的解释器）：
+
+```
+python 基础竞品分析工具/tests/verify_mainflow.py            # 基线取 HEAD
+python 基础竞品分析工具/tests/verify_mainflow.py --base HEAD~1  # 指定基线提交
+```
+
+预期比对结果：无回归时末行输出 `VERIFY-RESULT: PASS`、退出码 0，且两个 Sheet 的 `base=`/`worktree=` 单元格数相等且均非空（当前样例：IDA 21 格、CLEAN 11 格）；若行为发生回归，输出 `VERIFY-RESULT: FAIL`、退出码 2 并打印差异坐标。改动 `GET_Data_HD_Tune.py` 后应以此脚本的 PASS 记录作为一次有证据的手动比对，并将范围与量化结果（单元格数、PASS/FAIL）写入提交信息。CDM 汇总主流程 `GET_Data.CDM_Speed_Collect` 尚无专用验证入口，改动它须用 `python Power_and_Performance.py` 运行命令按真实样例手动验证性能/功耗 Sheet 写入后再提交。
+
 该约定有配套的机械强制点：仓库内受版本控制的 `.githooks/pre-commit` 钩子脚本会在提交前自动运行 pytest，失败即阻止提交。钩子按以下顺序选择解释器：环境变量 `PRECOMMIT_PYTHON` 显式指定 → 仓库根 `.venv` 中装有 pytest 的解释器 → PATH 上装有 pytest 的 `python`/`py`；找不到装有 pytest 的解释器时会输出「环境错误（非测试失败）」的引导信息并以退出码 2 阻止提交（区别于测试失败的退出码）。
 
 **钩子启用是入职/环境初始化的必做步骤**：每个新克隆在开始开发前，必须在仓库根目录运行一次环境初始化脚本 `setup-dev.bat`（安装 `requirements-dev.txt` 依赖 → 执行 `git config core.hooksPath .githooks` → 自动核对启用结果），或手动执行等效命令：

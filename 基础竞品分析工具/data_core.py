@@ -178,3 +178,31 @@ def parse_hd_tune_speed_values(line):
         remaining = remaining[next_pos + len("ReadSpeed:"):]
 
     return write_values, read_values
+
+
+def diff_cell_maps(map_a, map_b, max_samples=5):
+    """对比两份单元格值映射（{(row, col): value}），用于回归验证。
+
+    主流程改动前后各跑一遍样例数据，比较两次输出 Excel 指定 Sheet 的全部
+    非空单元格，即可判断行为是否发生回归。与 openpyxl 解耦：调用方负责
+    把 Sheet 读成 {(row, col): value} 映射，本函数只做纯对比。
+
+    Args:
+        map_a: 基准版单元格映射
+        map_b: 对比版单元格映射
+        max_samples: 差异示例最多返回的键数量
+
+    Returns:
+        dict: {'same': bool, 'count_a': int, 'count_b': int, 'diff_keys': list}
+        其中 diff_keys 为取值不同或仅存在于一侧的坐标，按排序截取前 max_samples 个。
+    """
+    keys_a, keys_b = set(map_a), set(map_b)
+    diff_keys = sorted(
+        keys_a ^ keys_b | {k for k in keys_a & keys_b if map_a[k] != map_b[k]}
+    )
+    return {
+        'same': not diff_keys,
+        'count_a': len(map_a),
+        'count_b': len(map_b),
+        'diff_keys': diff_keys[:max_samples],
+    }
