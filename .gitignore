@@ -55,3 +55,6 @@ test_monitor/*.png
 # 竞品分析工具运行输出（comparison.xlsx 为必需输入模板，保留在版本控制中）
 竞品分析工具/竞品对比报告_*.xlsx
 竞品分析工具/comparison_含真实数据备份.xlsx
+
+# 关键字数据汇总的本地备份配置（个人备用，与 config.json 仅需保留一份入库）
+关键字数据汇总/config*副本*.json
