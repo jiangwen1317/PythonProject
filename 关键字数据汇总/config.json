@@ -1,12 +1,26 @@
 {
   "sheet_name": "Sheet1",
   "tools": [
-    {
-      "name": "",
+     {
+      "name": "HD Tune-IDA.json",
       "keyword_to_column": {
-        "Load_Config:": ""
+       "WriteSpeed:": "",
+       "ReadSpeed:": ""
+      }
+    },
+	{
+     "name": "HD Tune-DIRTY.json",
+      "keyword_to_column": {
+       "WriteSpeed:": "",
+       "ReadSpeed:": ""
+      }
+    },
+	{
+     "name": "HD Tune-CLEAN-Erase.json",
+      "keyword_to_column": {
+       "WriteSpeed:": "",
+       "ReadSpeed:": ""
       }
     }
-  
   ]
 }
