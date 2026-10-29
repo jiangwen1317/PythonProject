@@ -116,3 +116,46 @@ def get_config_name(txt_file):
             return val
     return ""
 
+
+def build_wide_rows(records):
+    """把长记录聚合为宽表行结构（纯逻辑，不做任何 Excel 写入）
+
+    输入 records: 可迭代 (board_id, script, config_name, keyword, value)，
+    调用方需保证按文件处理顺序传入；同一 (板子, 配置, 关键字) 后出现的值覆盖先前值。
+
+    返回 (board_columns, rows)：
+    - board_columns: 板子号（节点列）有序列表，按首次出现顺序；
+    - rows: dict 列表，每项含 script / config / keyword / values（values 为
+      {板子号: 值} 映射），行顺序为配置首次出现顺序，同配置内关键字保持首次出现顺序。
+    """
+    board_columns = []
+    board_index = set()
+    row_order = []  # (config, keyword) 有序去重
+    row_values = {}  # (config, keyword) -> {board: value}
+    row_script = {}  # config -> script（配置名唯一对应一个脚本，随最后处理文件更新）
+
+    for board_id, script, config_name, keyword, value in records:
+        if board_id not in board_index:
+            board_index.add(board_id)
+            board_columns.append(board_id)
+
+        row_key = (config_name, keyword)
+        if row_key not in row_values:
+            row_values[row_key] = {}
+            row_order.append(row_key)
+        row_values[row_key][board_id] = value
+
+        if script:
+            row_script[config_name] = script
+
+    rows = [
+        {
+            "script": row_script.get(config, ""),
+            "config": config,
+            "keyword": keyword,
+            "values": row_values[(config, keyword)],
+        }
+        for config, keyword in row_order
+    ]
+    return board_columns, rows
+

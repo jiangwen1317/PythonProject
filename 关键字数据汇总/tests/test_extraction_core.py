@@ -104,3 +104,62 @@ class TestGetConfigName:
         txt = tmp_path / "log.txt"
         txt.write_text("nothing\n", encoding="utf-8")
         assert extraction_core.get_config_name(str(txt)) == ""
+
+
+class TestBuildWideRows:
+    def test_board_columns_in_first_seen_order(self):
+        records = [
+            ("BOARD002", "HD_Tune", "cfgA", "Spd:", "10"),
+            ("BOARD001", "HD_Tune", "cfgA", "Spd:", "20"),
+            ("BOARD002", "HD_Tune", "cfgA", "Spd:", "30"),
+        ]
+        board_columns, rows = extraction_core.build_wide_rows(records)
+        assert board_columns == ["BOARD002", "BOARD001"]
+        assert len(rows) == 1
+        assert rows[0]["values"] == {"BOARD002": "30", "BOARD001": "20"}
+
+    def test_later_file_overwrites_same_board(self):
+        # 同一板子的同 (配置, 关键字)：后处理的文件覆盖先出现的值
+        records = [
+            ("B1", "CDM", "cfgA", "Spd:", "old"),
+            ("B1", "CDM", "cfgA", "Spd:", "new"),
+        ]
+        _, rows = extraction_core.build_wide_rows(records)
+        assert rows[0]["values"]["B1"] == "new"
+        assert len(rows) == 1
+
+    def test_row_order_follows_config_then_keyword_first_seen(self):
+        records = [
+            ("B1", "S1", "cfgB", "K1:", "1"),
+            ("B1", "S1", "cfgA", "K2:", "2"),
+            ("B1", "S1", "cfgA", "K1:", "3"),
+        ]
+        _, rows = extraction_core.build_wide_rows(records)
+        assert [(r["config"], r["keyword"]) for r in rows] == [
+            ("cfgB", "K1:"),
+            ("cfgA", "K2:"),
+            ("cfgA", "K1:"),
+        ]
+
+    def test_script_bound_to_config_and_blank_not_overwriting(self):
+        records = [
+            ("B1", "HD_Tune", "cfgA", "Spd:", "1"),
+            ("B2", "", "cfgA", "Spd:", "2"),  # 空 script 不覆盖已记录值
+        ]
+        _, rows = extraction_core.build_wide_rows(records)
+        assert rows[0]["script"] == "HD_Tune"
+
+    def test_missing_board_leaves_cell_empty(self):
+        records = [
+            ("B1", "S1", "cfgA", "Spd:", "1"),
+            ("B2", "S1", "cfgB", "Spd:", "2"),
+        ]
+        board_columns, rows = extraction_core.build_wide_rows(records)
+        assert board_columns == ["B1", "B2"]
+        # cfgA 行只有 B1 有值，B2 缺失时 values 不含该键（写入侧留空）
+        assert "B2" not in rows[0]["values"]
+
+    def test_empty_records(self):
+        board_columns, rows = extraction_core.build_wide_rows([])
+        assert board_columns == []
+        assert rows == []

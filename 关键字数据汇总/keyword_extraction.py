@@ -17,6 +17,7 @@ from extraction_core import (
     extract_content_after_keyword,
     extract_nested_zips,
     get_config_name,
+    build_wide_rows,
 )
 
 # 配置与路径设置
@@ -30,6 +31,9 @@ def get_script_dir():
         return os.path.dirname(os.path.abspath(__file__))
 
 SCRIPT_DIR = get_script_dir()
+
+# 版本号唯一事实源：窗口标题与完成提示均引用此处，避免多处不同步
+APP_VERSION = "1.4"
 
 DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, "template.xlsx")
 DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "config.json")
@@ -45,6 +49,7 @@ message_queue = queue.Queue()
 # GUI 全局变量：提取模式开关
 # ========================
 extract_all_mode = None  # 将在 GUI 创建时初始化
+wide_table_mode = None   # 将在 GUI 创建时初始化（宽表模式开关）
 
 
 # ========================
@@ -102,7 +107,9 @@ def run_script_in_thread():
             return
 
         # === 获取用户选择的模式 ===
-        use_extract_all = extract_all_mode.get()
+        use_wide_table = wide_table_mode.get()
+        # 宽表模式下每个节点对同一关键字只保留一个结果，强制仅取最后一次
+        use_extract_all = extract_all_mode.get() and not use_wide_table
 
         # === 步骤1：递归解压 ZIP ===
         message_queue.put(("info", "🔄 正在解压 ZIP 文件..."))
@@ -151,15 +158,22 @@ def run_script_in_thread():
         ws = wb[sheet_name]
 
         # === 写表头 ===
-        ws.cell(row=1, column=1, value="板子号")
-        ws.cell(row=1, column=2, value="Script")
-        ws.cell(row=1, column=3, value="Config_Name")
-        ws.cell(row=1, column=4, value="关键字")
-        ws.cell(row=1, column=5, value="数据")
+        if use_wide_table:
+            # 宽表：固定列 Script/配置名/关键字，板子号列在聚合完成后从 D 列起动态写入
+            ws.cell(row=1, column=1, value="Script")
+            ws.cell(row=1, column=2, value="配置名")
+            ws.cell(row=1, column=3, value="关键字")
+        else:
+            ws.cell(row=1, column=1, value="板子号")
+            ws.cell(row=1, column=2, value="Script")
+            ws.cell(row=1, column=3, value="Config_Name")
+            ws.cell(row=1, column=4, value="关键字")
+            ws.cell(row=1, column=5, value="数据")
 
         # === 写数据：按 Config_Name 匹配 tool，提取其关键字 ===
-        row_idx = 2  # 从第2行开始
+        row_idx = 2  # 长表从第2行开始
         processed_count = 0
+        wide_records = []  # 宽表模式收集 (board_id, script, config, keyword, value) 长记录
 
         for txt_file in txt_files:
             processed_count += 1
@@ -211,11 +225,17 @@ def run_script_in_thread():
                         if keyword not in present_keywords:
                             continue
 
-                        # ✅ 根据用户选择决定是否提取全部
+                        # ✅ 根据用户选择决定是否提取全部（宽表模式下强制只取最后一次）
                         results = extract_content_after_keyword(txt_file, keyword, last_only=not use_extract_all)
 
                         if not results:
                             print(f"【未找到关键字】文件路径: {txt_file}, 关键字: {keyword}")
+                            continue
+
+                        if use_wide_table:
+                            # 宽表：只收记录，表头/单元格在全部文件处理完后统一写入
+                            last_value = results if isinstance(results, str) else results[-1]
+                            wide_records.append((board_id, script_value, config_name_value, keyword.strip(), last_value))
                             continue
 
                         # 统一转为列表处理
@@ -232,6 +252,21 @@ def run_script_in_thread():
             except Exception as e:
                 print(f"【跳过】处理文件失败 {txt_file}: {e}")
                 continue
+
+        # === 宽表模式：聚合长记录，动态写入板子号列头与单元格 ===
+        if use_wide_table:
+            board_columns, wide_rows = build_wide_rows(wide_records)
+            for i, board in enumerate(board_columns):
+                ws.cell(row=1, column=4 + i, value=board)
+            for row_key, row_data in enumerate(wide_rows, start=2):
+                ws.cell(row=row_key, column=1, value=row_data["script"])
+                ws.cell(row=row_key, column=2, value=row_data["config"])
+                ws.cell(row=row_key, column=3, value=row_data["keyword"])
+                for j, board in enumerate(board_columns):
+                    value = row_data["values"].get(board)
+                    if value is not None:
+                        ws.cell(row=row_key, column=4 + j, value=value)
+            row_idx = len(wide_rows) + 1  # 用于完成提示的行数统计
 
         # === 自动调整列宽 ===
         for col in range(1, ws.max_column + 1):
@@ -254,7 +289,11 @@ def run_script_in_thread():
         os.remove(temp_file.name)
 
         # 完成提示（仅弹窗，不自动打开文件夹）
-        msg = f"成功处理 {row_idx - 1} 个数据行！\n结果已保存至：\n{summary_excel_path}"
+        if use_wide_table:
+            msg = (f"成功生成 {row_idx - 1} 行宽表结果（{len(board_columns)} 个板子号列）！\n"
+                   f"结果已保存至：\n{summary_excel_path}")
+        else:
+            msg = f"成功处理 {row_idx - 1} 个数据行！\n结果已保存至：\n{summary_excel_path}"
         print(f"【完成】{msg}")
         message_queue.put(("success", msg))
 
@@ -365,11 +404,11 @@ def select_config_file():
 def main():
     """构建并启动 GUI 主界面（封装为函数，使模块可安全导入）"""
     # GUI 控件供其他函数以全局方式引用，保持原有行为不变
-    global root, folder_entry, excel_entry, config_entry, status_label, extract_all_mode
+    global root, folder_entry, excel_entry, config_entry, status_label, extract_all_mode, wide_table_mode
 
     root = tk.Tk()
-    root.title("关键字数据提取器V1.3")
-    root.geometry("650x380")  # 稍微增加高度以容纳复选框
+    root.title(f"关键字数据提取器V{APP_VERSION}")
+    root.geometry("650x420")  # 增加高度以容纳宽表模式复选框
     root.resizable(False, False)
 
     # --- 输入区域 ---
@@ -402,14 +441,31 @@ def main():
     # --- 提示信息 ---
     tk.Label(root, text="提示：Excel模板和配置json文件将默认从程序目录中寻找，也可指定路径", fg="gray", font=("Arial", 9)).grid(row=3, column=1, sticky="w", pady=(5, 0))
 
-    # --- 新增：提取模式选择 ---
+    # --- 新增：输出模式与提取模式选择 ---
+    wide_table_mode = tk.BooleanVar(value=False)
     extract_all_mode = tk.BooleanVar(value=False)
+
+    def on_wide_mode_toggle():
+        # 宽表模式下每节点只取一个结果，"提取全部匹配项"置灰禁用
+        all_match_check.config(state="disabled" if wide_table_mode.get() else "normal")
+        if wide_table_mode.get():
+            extract_all_mode.set(False)
+
     tk.Checkbutton(
+        root,
+        text="宽表模式（按板子号分列，每节点仅取最后一次结果）",
+        variable=wide_table_mode,
+        command=on_wide_mode_toggle,
+        font=("Arial", 9)
+    ).grid(row=4, column=1, sticky="w", padx=(80, 0), pady=(0, 2))
+
+    all_match_check = tk.Checkbutton(
         root,
         text="提取全部匹配项（而非仅最后一次）",
         variable=extract_all_mode,
         font=("Arial", 9)
-    ).grid(row=4, column=1, sticky="w", padx=(80, 0), pady=(0, 10))
+    )
+    all_match_check.grid(row=5, column=1, sticky="w", padx=(80, 0), pady=(0, 10))
 
     # --- 执行按钮 ---
     tk.Button(
@@ -421,11 +477,11 @@ def main():
         font=("Arial", 11, "bold"),
         width=15,
         height=1
-    ).grid(row=5, column=1, pady=10)
+    ).grid(row=6, column=1, pady=10)
 
     # --- 状态栏 ---
     status_label = tk.Label(root, text="就绪", fg="blue", font=("Arial", 9))
-    status_label.grid(row=6, column=0, columnspan=3, pady=10)
+    status_label.grid(row=7, column=0, columnspan=3, pady=10)
 
     # 启动 GUI
     root.mainloop()
